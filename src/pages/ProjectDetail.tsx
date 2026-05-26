@@ -149,46 +149,153 @@ function VendorSelectDialog({
   )
 }
 
-function ItemPickModal({
-  items, onSelect, onClose,
-}: { items: Item[]; onSelect: (item: Item) => void; onClose: () => void }) {
+function BulkTransactionModal({
+  items, projectId, onClose, onSuccess,
+}: { items: Item[]; projectId: string; onClose: () => void; onSuccess: () => void }) {
+  const today = new Date().toISOString().split('T')[0]
+  const [date, setDate] = useState(today)
+  const [notes, setNotes] = useState('')
   const [search, setSearch] = useState('')
+  const [quantities, setQuantities] = useState<Record<string, { out: number; inp: number; loss: number }>>({})
+  const [loading, setLoading] = useState(false)
+
+  const updateQty = (itemId: string, field: 'out' | 'inp' | 'loss', value: number) => {
+    setQuantities((prev) => ({
+      ...prev,
+      [itemId]: { out: 0, inp: 0, loss: 0, ...prev[itemId], [field]: Math.max(0, value) },
+    }))
+  }
+
+  const handleSubmit = async () => {
+    const rows: { item_id: string; transaction_type: string; quantity: number }[] = []
+    Object.entries(quantities).forEach(([itemId, q]) => {
+      if (q.out > 0) rows.push({ item_id: itemId, transaction_type: '출고', quantity: q.out })
+      if (q.inp > 0) rows.push({ item_id: itemId, transaction_type: '반입', quantity: q.inp })
+      if (q.loss > 0) rows.push({ item_id: itemId, transaction_type: '손실', quantity: q.loss })
+    })
+    if (rows.length === 0) { alert('수량을 1개 이상 입력해주세요.'); return }
+    setLoading(true)
+    try {
+      await supabase.from('inventory_transactions').insert(
+        rows.map((r) => ({ ...r, project_id: projectId, transaction_date: date, notes: notes.trim() || null }))
+      )
+      onSuccess()
+      onClose()
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const filtered = items.filter((it) =>
     it.name.toLowerCase().includes(search.toLowerCase()) ||
     it.category.toLowerCase().includes(search.toLowerCase())
   )
+
+  const totalEntries = Object.values(quantities).filter((q) => q.out > 0 || q.inp > 0 || q.loss > 0).length
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col max-h-[75vh]">
-        <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0">
-          <h3 className="font-bold text-slate-800">자재 선택</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <h3 className="font-bold text-slate-800 text-lg">자재 입출고 등록</h3>
+            {totalEntries > 0 && (
+              <span className="text-xs font-medium text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
+                {totalEntries}개 자재 입력됨
+              </span>
+            )}
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
-        <div className="p-3 flex-shrink-0">
+
+        {/* 날짜 / 비고 / 검색 */}
+        <div className="px-6 py-3 border-b flex-shrink-0 flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-slate-600 whitespace-nowrap">날짜</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+          </div>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <label className="text-sm font-medium text-slate-600 whitespace-nowrap">비고</label>
+            <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="메모 (선택)"
+              className="flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+          </div>
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="자재명·카테고리 검색..." autoFocus
-              className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="자재 검색..."
+              className="pl-7 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm w-36 focus:outline-none focus:ring-2 focus:ring-violet-500" />
           </div>
         </div>
-        <div className="overflow-y-auto flex-1 px-3 pb-3 space-y-1">
-          {filtered.length === 0
-            ? <p className="text-center text-slate-400 text-sm py-6">검색 결과가 없습니다.</p>
-            : filtered.map((it) => (
-              <button key={it.id} onClick={() => onSelect(it)}
-                className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-violet-50 transition-colors border border-transparent hover:border-violet-200 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-slate-800 text-sm">{it.name}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{it.category} · {it.unit}</p>
-                </div>
-              </button>
-            ))}
+
+        {/* 자재 테이블 */}
+        <div className="overflow-y-auto flex-1">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-slate-50 z-10 border-b border-slate-200">
+              <tr>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">카테고리</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">자재명</th>
+                <th className="text-center px-3 py-3 font-semibold text-red-700 text-xs w-24">출고</th>
+                <th className="text-center px-3 py-3 font-semibold text-blue-700 text-xs w-24">반입</th>
+                <th className="text-center px-3 py-3 font-semibold text-orange-700 text-xs w-24">손실</th>
+                <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs w-20">미반입</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filtered.map((item) => {
+                const q = quantities[item.id] || { out: 0, inp: 0, loss: 0 }
+                const unreturned = q.out - q.inp - q.loss
+                const hasAny = q.out > 0 || q.inp > 0 || q.loss > 0
+                return (
+                  <tr key={item.id} className={`transition-colors ${hasAny ? 'bg-violet-50/40' : 'hover:bg-slate-50/60'}`}>
+                    <td className="px-4 py-2.5 text-xs text-slate-500 whitespace-nowrap">{item.category}</td>
+                    <td className="px-4 py-2.5">
+                      <p className="font-medium text-slate-800">{item.name}</p>
+                      <p className="text-xs text-slate-400">{item.unit}</p>
+                    </td>
+                    <td className="px-3 py-2">
+                      <input type="number" min={0} value={q.out || ''}
+                        onChange={(e) => updateQty(item.id, 'out', Number(e.target.value))}
+                        placeholder="0"
+                        className="w-full text-center border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input type="number" min={0} value={q.inp || ''}
+                        onChange={(e) => updateQty(item.id, 'inp', Number(e.target.value))}
+                        placeholder="0"
+                        className="w-full text-center border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input type="number" min={0} value={q.loss || ''}
+                        onChange={(e) => updateQty(item.id, 'loss', Number(e.target.value))}
+                        placeholder="0"
+                        className="w-full text-center border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent" />
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <span className={`font-semibold text-sm ${!hasAny ? 'text-slate-300' : unreturned > 0 ? 'text-red-600' : 'text-slate-500'}`}>
+                        {hasAny ? unreturned : '-'}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 px-6 py-4 border-t bg-slate-50 flex-shrink-0">
+          <button onClick={onClose} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">취소</button>
+          <button onClick={handleSubmit} disabled={loading}
+            className="flex-1 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-50">
+            {loading ? '저장 중...' : `저장${totalEntries > 0 ? ` (${totalEntries}개 자재)` : ''}`}
+          </button>
         </div>
       </div>
     </div>
   )
 }
+
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
@@ -203,7 +310,7 @@ export default function ProjectDetail() {
   const [newStatus, setNewStatus] = useState<ProjectStatus>('제안중')
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
-  const [showItemPicker, setShowItemPicker] = useState(false)
+  const [showBulkModal, setShowBulkModal] = useState(false)
   const [allItems, setAllItems] = useState<Item[]>([])
   const [selectingVendor, setSelectingVendor] = useState(false)
   const [orderVendor, setOrderVendor] = useState<Vendor | null>(null)
@@ -444,7 +551,7 @@ export default function ProjectDetail() {
               />
             </div>
             <button
-              onClick={() => setShowItemPicker(true)}
+              onClick={() => setShowBulkModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors"
             >
               <Plus size={13} />자재 등록
@@ -696,12 +803,13 @@ export default function ProjectDetail() {
         />
       )}
 
-      {/* 자재 선택 피커 */}
-      {showItemPicker && (
-        <ItemPickModal
+      {/* 자재 일괄 입출고 등록 */}
+      {showBulkModal && id && (
+        <BulkTransactionModal
           items={allItems}
-          onSelect={(item) => { setShowItemPicker(false); setSelectedItem(item) }}
-          onClose={() => setShowItemPicker(false)}
+          projectId={id}
+          onSuccess={fetchProjectData}
+          onClose={() => setShowBulkModal(false)}
         />
       )}
 
