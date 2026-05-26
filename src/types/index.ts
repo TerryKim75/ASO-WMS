@@ -39,6 +39,8 @@ export interface WmsProject {
   status: ProjectStatus
   manager?: string
   construction_staff?: ConstructionStaff[]
+  shipping_date?: string
+  return_date?: string
   notes?: string
   created_at: string
 }

@@ -459,6 +459,18 @@ export default function ProjectDetail() {
                   <p className="text-slate-700 font-medium">{startDt}{startDt && endDt && ' ~ '}{endDt}</p>
                 </div>
               )}
+              {project.shipping_date && (
+                <div>
+                  <span className="text-slate-400 text-xs">출고예정일</span>
+                  <p className="text-slate-700 font-medium">{project.shipping_date.replace(/-/g, '.')}</p>
+                </div>
+              )}
+              {project.return_date && (
+                <div>
+                  <span className="text-slate-400 text-xs">입고예정일</span>
+                  <p className="text-slate-700 font-medium">{project.return_date.replace(/-/g, '.')}</p>
+                </div>
+              )}
             </div>
             {project.notes && <p className="text-sm text-slate-500 mt-3 bg-slate-50 px-3 py-2 rounded-lg">{project.notes}</p>}
           </div>

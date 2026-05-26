@@ -25,6 +25,8 @@ export default function AddProjectModal({ onClose, onSuccess }: Props) {
     end_date: '',
     end_time: '',
     manager: '',
+    shipping_date: '',
+    return_date: '',
     notes: '',
   })
   const [staff, setStaff] = useState<ConstructionStaff[]>([])
@@ -59,6 +61,8 @@ export default function AddProjectModal({ onClose, onSuccess }: Props) {
         end_time: form.end_time || null,
         manager: form.manager || null,
         construction_staff: validStaff.length > 0 ? validStaff : null,
+        shipping_date: form.shipping_date || null,
+        return_date: form.return_date || null,
         notes: form.notes.trim() || null,
       })
       if (projError) throw projError
@@ -174,6 +178,25 @@ export default function AddProjectModal({ onClose, onSuccess }: Props) {
                 <div>
                   <label className={labelClass}>종료 시간</label>
                   <input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+                    className={inputClass} />
+                </div>
+              </div>
+            </div>
+
+            <hr className="border-slate-100" />
+
+            {/* 출고/입고 예정일 */}
+            <div className="space-y-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">출고 / 입고 예정일</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>출고예정일</label>
+                  <input type="date" value={form.shipping_date} onChange={(e) => setForm({ ...form, shipping_date: e.target.value })}
+                    className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>입고예정일</label>
+                  <input type="date" value={form.return_date} onChange={(e) => setForm({ ...form, return_date: e.target.value })}
                     className={inputClass} />
                 </div>
               </div>
