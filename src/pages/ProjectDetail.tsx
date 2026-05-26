@@ -199,7 +199,7 @@ function BulkTransactionModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
           <div className="flex items-center gap-3">
-            <h3 className="font-bold text-slate-800 text-lg">자재 입출고 등록</h3>
+            <h3 className="font-bold text-slate-800 text-lg">입출고 내역 작성</h3>
             {totalEntries > 0 && (
               <span className="text-xs font-medium text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
                 {totalEntries}개 자재 입력됨
@@ -566,7 +566,7 @@ export default function ProjectDetail() {
               onClick={() => setShowBulkModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors"
             >
-              <Plus size={13} />자재 등록
+              <Plus size={13} />입출고 내역 작성
             </button>
           </div>
         </div>
