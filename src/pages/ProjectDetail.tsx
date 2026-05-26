@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Edit2, Check, X, Phone, Mail, Users,
   FileText, Paperclip, Search, Building2, ChevronDown, ChevronRight,
-  AlertCircle,
+  AlertCircle, Trash2,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { WmsProject, ProjectStatus, Item, InventoryTransaction } from '../types'
@@ -47,6 +47,67 @@ const typeBadge: Record<string, string> = {
   출고: 'bg-red-100 text-red-700',
   반입: 'bg-blue-100 text-blue-700',
   손실: 'bg-orange-100 text-orange-700',
+}
+
+const PROJECT_TX_TYPES = ['출고', '반입', '손실'] as const
+
+function EditTransactionDialog({
+  tx, onSave, onClose,
+}: { tx: InventoryTransaction; onSave: (updates: { transaction_type: string; quantity: number; transaction_date: string; notes: string }) => void; onClose: () => void }) {
+  const [form, setForm] = useState({
+    transaction_type: tx.transaction_type as string,
+    quantity: tx.quantity,
+    transaction_date: tx.transaction_date,
+    notes: tx.notes || '',
+  })
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <h3 className="font-bold text-slate-800">내역 수정</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">구분</label>
+            <div className="flex gap-2">
+              {PROJECT_TX_TYPES.map((t) => (
+                <button key={t} type="button"
+                  onClick={() => setForm({ ...form, transaction_type: t })}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                    form.transaction_type === t
+                      ? 'bg-violet-600 text-white border-violet-600'
+                      : 'bg-white text-slate-600 border-slate-300 hover:border-violet-400'
+                  }`}>{t}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">수량</label>
+            <input type="number" value={form.quantity} min={1}
+              onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">날짜</label>
+            <input type="date" value={form.transaction_date}
+              onChange={(e) => setForm({ ...form, transaction_date: e.target.value })}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">비고</label>
+            <input type="text" value={form.notes} placeholder="메모 (선택)"
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+          </div>
+        </div>
+        <div className="flex gap-3 px-5 py-4 border-t bg-slate-50">
+          <button onClick={onClose} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg">취소</button>
+          <button onClick={() => onSave(form)} className="flex-1 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg">저장</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function VendorSelectDialog({
@@ -148,6 +209,20 @@ export default function ProjectDetail() {
   const [orderVendor, setOrderVendor] = useState<Vendor | null>(null)
   const [uploadingPoId, setUploadingPoId] = useState<string | null>(null)
   const [txSearch, setTxSearch] = useState('')
+  const [editingTx, setEditingTx] = useState<InventoryTransaction | null>(null)
+
+  const handleEditTx = async (updates: { transaction_type: string; quantity: number; transaction_date: string; notes: string }) => {
+    if (!editingTx) return
+    await supabase.from('inventory_transactions').update(updates).eq('id', editingTx.id)
+    setEditingTx(null)
+    fetchProjectData()
+  }
+
+  const handleDeleteTx = async (txId: string) => {
+    if (!window.confirm('이 내역을 삭제하시겠습니까?')) return
+    await supabase.from('inventory_transactions').delete().eq('id', txId)
+    fetchProjectData()
+  }
 
   const fetchProjectData = useCallback(async () => {
     if (!id) return
@@ -390,7 +465,7 @@ export default function ProjectDetail() {
                 <th className="text-center px-4 py-3 font-semibold text-orange-700 text-xs">손실</th>
                 <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs">미반입</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">비고</th>
-                <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs w-16">등록</th>
+                <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs w-20">수정</th>
               </tr>
             </thead>
             <tbody>
@@ -460,7 +535,7 @@ export default function ProjectDetail() {
                             onClick={() => setSelectedItem(summary.item)}
                             className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors"
                           >
-                            <Plus size={11} />등록
+                            <Plus size={11} />추가
                           </button>
                         </td>
                       </tr>
@@ -493,8 +568,20 @@ export default function ProjectDetail() {
                             ) : '-'}
                           </td>
                           <td className="px-4 py-2 text-center text-slate-400">-</td>
-                          <td className="px-4 py-2 text-slate-500 max-w-[140px] truncate" colSpan={2}>
+                          <td className="px-4 py-2 text-slate-500 max-w-[140px] truncate">
                             {tx.notes || <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button onClick={() => setEditingTx(tx)}
+                                className="p-1 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded transition-colors">
+                                <Edit2 size={12} />
+                              </button>
+                              <button onClick={() => handleDeleteTx(tx.id)}
+                                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -599,6 +686,15 @@ export default function ProjectDetail() {
           </table>
         </div>
       </div>
+
+      {/* 내역 수정 모달 */}
+      {editingTx && (
+        <EditTransactionDialog
+          tx={editingTx}
+          onSave={handleEditTx}
+          onClose={() => setEditingTx(null)}
+        />
+      )}
 
       {/* 자재 선택 피커 */}
       {showItemPicker && (
