@@ -160,10 +160,10 @@ function BulkTransactionModal({
   const [loading, setLoading] = useState(false)
 
   const updateQty = (itemId: string, field: 'out' | 'inp' | 'loss', value: number) => {
-    setQuantities((prev) => ({
-      ...prev,
-      [itemId]: { out: 0, inp: 0, loss: 0, ...prev[itemId], [field]: Math.max(0, value) },
-    }))
+    setQuantities((prev) => {
+      const existing = prev[itemId] || { out: 0, inp: 0, loss: 0 }
+      return { ...prev, [itemId]: { ...existing, [field]: Math.max(0, value) } }
+    })
   }
 
   const handleSubmit = async () => {
