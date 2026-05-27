@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { X, Plus, Trash2, UserPlus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import type { ProjectStatus, ConstructionStaff } from '../types'
+import type { WmsProject, ProjectStatus, ConstructionStaff } from '../types'
 
 interface Props {
   onClose: () => void
   onSuccess: () => void
+  project?: WmsProject
 }
 
 const STATUSES: ProjectStatus[] = ['제안중', '계약완료', '시공진행', '완료', '취소']
@@ -13,25 +14,25 @@ const MANAGERS = ['김태환', '고연호', '김종혜']
 
 const emptyStaff = (): ConstructionStaff => ({ name: '', phone: '', email: '' })
 
-export default function AddProjectModal({ onClose, onSuccess }: Props) {
+export default function AddProjectModal({ onClose, onSuccess, project }: Props) {
   const [form, setForm] = useState({
-    name: '',
-    exhibition: '',
-    organizer: '',
-    exhibitor: '',
-    status: '영업중' as ProjectStatus,
-    start_date: '',
-    start_time: '',
-    end_date: '',
-    end_time: '',
-    manager: '',
-    shipping_date: '',
-    return_date: '',
-    construction_date: '',
-    demolition_date: '',
-    notes: '',
+    name: project?.name || '',
+    exhibition: project?.exhibition || '',
+    organizer: project?.organizer || '',
+    exhibitor: project?.exhibitor || '',
+    status: (project?.status || '제안중') as ProjectStatus,
+    start_date: project?.start_date || '',
+    start_time: project?.start_time || '',
+    end_date: project?.end_date || '',
+    end_time: project?.end_time || '',
+    manager: project?.manager || '',
+    shipping_date: project?.shipping_date || '',
+    return_date: project?.return_date || '',
+    construction_date: project?.construction_date || '',
+    demolition_date: project?.demolition_date || '',
+    notes: project?.notes || '',
   })
-  const [staff, setStaff] = useState<ConstructionStaff[]>([])
+  const [staff, setStaff] = useState<ConstructionStaff[]>(project?.construction_staff || [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -51,7 +52,7 @@ export default function AddProjectModal({ onClose, onSuccess }: Props) {
 
     try {
       const validStaff = staff.filter((s) => s.name.trim())
-      const { error: projError } = await supabase.from('wms_projects').insert({
+      const payload = {
         name: form.name.trim(),
         exhibition: form.exhibition.trim() || null,
         organizer: form.organizer.trim() || null,
@@ -68,7 +69,10 @@ export default function AddProjectModal({ onClose, onSuccess }: Props) {
         construction_date: form.construction_date || null,
         demolition_date: form.demolition_date || null,
         notes: form.notes.trim() || null,
-      })
+      }
+      const { error: projError } = project
+        ? await supabase.from('wms_projects').update(payload).eq('id', project.id)
+        : await supabase.from('wms_projects').insert(payload)
       if (projError) throw projError
       onSuccess()
       onClose()
@@ -90,7 +94,7 @@ export default function AddProjectModal({ onClose, onSuccess }: Props) {
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
-          <h2 className="text-lg font-bold text-slate-800">프로젝트 추가</h2>
+          <h2 className="text-lg font-bold text-slate-800">{project ? '프로젝트 수정' : '프로젝트 추가'}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={20} />
           </button>
@@ -303,7 +307,7 @@ export default function AddProjectModal({ onClose, onSuccess }: Props) {
             </button>
             <button type="submit" disabled={loading}
               className="flex-1 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-50">
-              {loading ? '저장 중...' : '프로젝트 추가'}
+              {loading ? '저장 중...' : (project ? '수정 완료' : '프로젝트 추가')}
             </button>
           </div>
         </form>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ChevronRight } from 'lucide-react'
+import { Plus, ChevronRight, Edit2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { WmsProject, ProjectStatus } from '../types'
 import AddProjectModal from '../components/AddProjectModal'
@@ -36,6 +36,7 @@ export default function Projects() {
   const [projectStats, setProjectStats] = useState<Record<string, ProjectStats>>({})
   const [loading, setLoading] = useState(true)
   const [showAddProject, setShowAddProject] = useState(false)
+  const [editingProject, setEditingProject] = useState<WmsProject | null>(null)
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all')
 
   const fetchProjects = useCallback(async () => {
@@ -144,7 +145,7 @@ export default function Projects() {
 
                   return (
                     <tr key={project.id} onClick={() => navigate(`/projects/${project.id}`)}
-                      className="hover:bg-violet-50 transition-colors cursor-pointer">
+                      className="hover:bg-violet-50 transition-colors cursor-pointer group">
                       <td className="px-5 py-3.5">
                         <p className="font-medium text-slate-800">{project.name}</p>
                         {project.notes && <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[160px]">{project.notes}</p>}
@@ -183,7 +184,15 @@ export default function Projects() {
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-center">
-                        <ChevronRight size={16} className="text-slate-400 mx-auto" />
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEditingProject(project) }}
+                            className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <ChevronRight size={16} className="text-slate-400" />
+                        </div>
                       </td>
                     </tr>
                   )
@@ -198,6 +207,13 @@ export default function Projects() {
       </div>
 
       {showAddProject && <AddProjectModal onClose={() => setShowAddProject(false)} onSuccess={fetchProjects} />}
+      {editingProject && (
+        <AddProjectModal
+          project={editingProject}
+          onClose={() => setEditingProject(null)}
+          onSuccess={() => { setEditingProject(null); fetchProjects() }}
+        />
+      )}
     </div>
   )
 }
