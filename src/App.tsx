@@ -10,12 +10,14 @@ import ConstructionStaff from './pages/ConstructionStaff'
 import Vendors from './pages/Vendors'
 import WorkReport from './pages/WorkReport'
 import Employees from './pages/Employees'
+import BidForm from './pages/BidForm'
 
 function App() {
   return (
     <BrowserRouter>
       <CategoriesProvider>
         <Routes>
+          <Route path="bid/:projectId" element={<BidForm />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="inventory" element={<Inventory />} />

@@ -58,6 +58,19 @@ export interface InventoryTransaction {
   wms_projects?: WmsProject
 }
 
+export type BidStatus = '대기' | '낙찰' | '거절'
+
+export interface ProjectBid {
+  id: string
+  project_id: string
+  bidder_name: string
+  bidder_phone: string
+  proposed_price: number
+  note?: string
+  status: BidStatus
+  created_at: string
+}
+
 export interface ItemWithStock extends Item {
   current_stock: number
   total_in: number

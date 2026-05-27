@@ -3,10 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Edit2, Check, X, Phone, Mail, Users,
   FileText, Paperclip, Search, Building2, ChevronDown, ChevronRight,
-  AlertCircle, Trash2,
+  AlertCircle, Trash2, Send,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import type { WmsProject, ProjectStatus, Item, InventoryTransaction } from '../types'
+import type { WmsProject, ProjectStatus, Item, InventoryTransaction, ProjectBid } from '../types'
 import { STATUS_COLORS } from './Projects'
 import TransactionModal from '../components/TransactionModal'
 import PurchaseOrderModal from '../components/PurchaseOrderModal'
@@ -317,12 +317,43 @@ export default function ProjectDetail() {
   const [uploadingPoId, setUploadingPoId] = useState<string | null>(null)
   const [txSearch, setTxSearch] = useState('')
   const [editingTx, setEditingTx] = useState<InventoryTransaction | null>(null)
+  const [bids, setBids] = useState<ProjectBid[]>([])
+  const [sendingNotice, setSendingNotice] = useState(false)
+  const [noticeResult, setNoticeResult] = useState<{ ok: boolean; msg: string } | null>(null)
 
   const handleEditTx = async (updates: { transaction_type: string; quantity: number; transaction_date: string; notes: string }) => {
     if (!editingTx) return
     await supabase.from('inventory_transactions').update(updates).eq('id', editingTx.id)
     setEditingTx(null)
     fetchProjectData()
+  }
+
+  const handleSendNotice = async () => {
+    if (!id) return
+    if (!window.confirm('모든 시공인력에게 카카오 입찰 공고를 발송하시겠습니까?')) return
+    setSendingNotice(true)
+    setNoticeResult(null)
+    try {
+      const { data, error } = await supabase.functions.invoke('send-kakao-notice', {
+        body: { projectId: id },
+      })
+      if (error) throw error
+      setNoticeResult({ ok: true, msg: `${data.sentCount}명에게 발송 완료` })
+    } catch (err) {
+      setNoticeResult({ ok: false, msg: `발송 실패: ${String(err)}` })
+    } finally {
+      setSendingNotice(false)
+    }
+  }
+
+  const handleBidStatus = async (bidId: string, status: '낙찰' | '거절') => {
+    await supabase.from('project_bids').update({ status }).eq('id', bidId)
+    const { data } = await supabase
+      .from('project_bids')
+      .select('*')
+      .eq('project_id', id)
+      .order('created_at', { ascending: false })
+    setBids((data || []) as ProjectBid[])
   }
 
   const handleDeleteTx = async (txId: string) => {
@@ -335,7 +366,7 @@ export default function ProjectDetail() {
     if (!id) return
     setLoading(true)
     try {
-      const [projectRes, txRes, posRes, vendorsRes, itemsRes] = await Promise.all([
+      const [projectRes, txRes, posRes, vendorsRes, itemsRes, bidsRes] = await Promise.all([
         supabase.from('wms_projects').select('*').eq('id', id).single(),
         supabase
           .from('inventory_transactions')
@@ -350,12 +381,14 @@ export default function ProjectDetail() {
           .order('order_date', { ascending: false }),
         supabase.from('vendors').select('id, name, category, contact_name, phone, email').order('name'),
         supabase.from('items').select('*').order('category').order('name'),
+        supabase.from('project_bids').select('*').eq('project_id', id).order('created_at', { ascending: false }),
       ])
       if (projectRes.data) { setProject(projectRes.data); setNewStatus(projectRes.data.status) }
       setTransactions((txRes.data || []) as InventoryTransaction[])
       setPurchaseOrders((posRes.data || []) as PurchaseOrder[])
       setVendors((vendorsRes.data || []) as Vendor[])
       setAllItems((itemsRes.data || []) as Item[])
+      setBids((bidsRes.data || []) as ProjectBid[])
     } finally {
       setLoading(false)
     }
@@ -797,6 +830,98 @@ export default function ProjectDetail() {
                         <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" disabled={uploadingPoId === po.id}
                           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(po.id, f) }} />
                       </label>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ─── 시공 입찰 현황 ─── */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Send size={15} className="text-violet-500" />
+            <h2 className="font-semibold text-slate-800">시공 입찰 현황</h2>
+            {bids.length > 0 && (
+              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{bids.length}건</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {noticeResult && (
+              <span className={`text-xs px-2.5 py-1 rounded-full ${noticeResult.ok ? 'text-green-700 bg-green-50' : 'text-red-600 bg-red-50'}`}>
+                {noticeResult.msg}
+              </span>
+            )}
+            <button
+              onClick={handleSendNotice}
+              disabled={sendingNotice}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <Send size={12} />{sendingNotice ? '발송 중...' : '입찰 공고 발송'}
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="text-left px-5 py-3 font-semibold text-slate-600 text-xs">제안자</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">연락처</th>
+                <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs">제안금액</th>
+                <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">메모</th>
+                <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs">상태</th>
+                <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs w-28">처리</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {bids.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-10 text-center text-slate-400 text-sm">
+                    아직 입찰 제안이 없습니다.
+                  </td>
+                </tr>
+              ) : bids.map((bid) => (
+                <tr key={bid.id} className={`transition-colors ${
+                  bid.status === '낙찰' ? 'bg-green-50/50' :
+                  bid.status === '거절' ? 'opacity-40' :
+                  'hover:bg-slate-50'
+                }`}>
+                  <td className="px-5 py-3 font-medium text-slate-800">{bid.bidder_name}</td>
+                  <td className="px-4 py-3">
+                    <a href={`tel:${bid.bidder_phone}`}
+                      className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-violet-600 transition-colors">
+                      <Phone size={12} />{bid.bidder_phone}
+                    </a>
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-slate-800">
+                    {bid.proposed_price.toLocaleString()}원
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-500 max-w-[200px] truncate">
+                    {bid.note || <span className="text-slate-300">-</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full border ${
+                      bid.status === '낙찰' ? 'bg-green-100 text-green-700 border-green-200' :
+                      bid.status === '거절' ? 'bg-slate-100 text-slate-500 border-slate-200' :
+                      'bg-amber-100 text-amber-700 border-amber-200'
+                    }`}>{bid.status}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {bid.status === '대기' && (
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button onClick={() => handleBidStatus(bid.id, '낙찰')}
+                          className="px-2.5 py-1 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors">
+                          낙찰
+                        </button>
+                        <button onClick={() => handleBidStatus(bid.id, '거절')}
+                          className="px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors">
+                          거절
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
