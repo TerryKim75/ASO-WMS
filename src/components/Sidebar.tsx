@@ -8,6 +8,7 @@ import {
   Building2,
   ChevronRight,
   ClipboardList,
+  Users,
 } from 'lucide-react'
 import { useCategories, CATEGORY_COLORS } from '../contexts/CategoriesContext'
 
@@ -19,6 +20,7 @@ const navItems = [
   { to: '/staff', label: '시공인력', icon: Hammer },
   { to: '/vendors', label: '발주처', icon: Building2 },
   { to: '/work-report', label: '업무보고서', icon: ClipboardList },
+  { to: '/employees', label: '직원정보', icon: Users },
 ]
 
 export default function Sidebar() {
