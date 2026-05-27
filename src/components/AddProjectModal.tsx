@@ -27,6 +27,8 @@ export default function AddProjectModal({ onClose, onSuccess }: Props) {
     manager: '',
     shipping_date: '',
     return_date: '',
+    construction_date: '',
+    demolition_date: '',
     notes: '',
   })
   const [staff, setStaff] = useState<ConstructionStaff[]>([])
@@ -63,6 +65,8 @@ export default function AddProjectModal({ onClose, onSuccess }: Props) {
         construction_staff: validStaff.length > 0 ? validStaff : null,
         shipping_date: form.shipping_date || null,
         return_date: form.return_date || null,
+        construction_date: form.construction_date || null,
+        demolition_date: form.demolition_date || null,
         notes: form.notes.trim() || null,
       })
       if (projError) throw projError
@@ -197,6 +201,25 @@ export default function AddProjectModal({ onClose, onSuccess }: Props) {
                 <div>
                   <label className={labelClass}>입고예정일</label>
                   <input type="date" value={form.return_date} onChange={(e) => setForm({ ...form, return_date: e.target.value })}
+                    className={inputClass} />
+                </div>
+              </div>
+            </div>
+
+            <hr className="border-slate-100" />
+
+            {/* 시공 / 철거 일정 */}
+            <div className="space-y-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">시공 / 철거 일정</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>시공일</label>
+                  <input type="date" value={form.construction_date} onChange={(e) => setForm({ ...form, construction_date: e.target.value })}
+                    className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>철거일</label>
+                  <input type="date" value={form.demolition_date} onChange={(e) => setForm({ ...form, demolition_date: e.target.value })}
                     className={inputClass} />
                 </div>
               </div>

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Edit2, Check, X, Phone, Mail, Users,
   FileText, Paperclip, Search, Building2, ChevronDown, ChevronRight,
-  AlertCircle, Trash2, Send,
+  AlertCircle, Trash2, Send, Pencil, Download,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { WmsProject, ProjectStatus, Item, InventoryTransaction, ProjectBid } from '../types'
@@ -308,23 +308,7 @@ function NoticeModal({
 }) {
   const [workerCount, setWorkerCount] = useState<number | null>(null)
   const [sending, setSending] = useState(false)
-
-  const dateRange = project.start_date
-    ? `${project.start_date.replace(/-/g, '.')}${project.end_date ? ` ~ ${project.end_date.replace(/-/g, '.')}` : ''}`
-    : ''
-
-  const defaultContent = [
-    '[아소시스템] 시공 입찰 공고',
-    '',
-    `프로젝트: ${project.name}`,
-    project.exhibition ? `전시: ${project.exhibition}` : null,
-    dateRange ? `일정: ${dateRange}` : null,
-    project.notes ? `내용: ${project.notes}` : null,
-    '',
-    '시공 참여를 원하시면 아래 버튼을 눌러 가격을 제안해 주세요.',
-  ].filter(Boolean).join('\n')
-
-  const [content, setContent] = useState(defaultContent)
+  const [extraContent, setExtraContent] = useState('')
 
   useEffect(() => {
     supabase
@@ -334,19 +318,37 @@ function NoticeModal({
       .then(({ count }) => setWorkerCount(count ?? 0))
   }, [])
 
+  const dateRange = project.start_date
+    ? `${project.start_date.replace(/-/g, '.')}${project.end_date ? ` ~ ${project.end_date.replace(/-/g, '.')}` : ''}`
+    : null
+
+  const autoLines = [
+    '[아소시스템] 시공 입찰 공고',
+    '',
+    `프로젝트: ${project.name}`,
+    project.exhibition ? `전시: ${project.exhibition}` : null,
+    dateRange ? `전시일정: ${dateRange}` : null,
+    project.construction_date ? `시공일: ${project.construction_date.replace(/-/g, '.')}` : null,
+    project.demolition_date ? `철거일: ${project.demolition_date.replace(/-/g, '.')}` : null,
+    project.notes ? `내용: ${project.notes}` : null,
+  ].filter(Boolean).join('\n')
+
+  const fullMessage = extraContent.trim()
+    ? `${autoLines}\n\n${extraContent.trim()}\n\n시공 참여를 원하시면 아래 버튼을 눌러 가격을 제안해 주세요.`
+    : `${autoLines}\n\n시공 참여를 원하시면 아래 버튼을 눌러 가격을 제안해 주세요.`
+
   const handleSend = async () => {
-    if (!content.trim()) return
     setSending(true)
-    await onSend(content)
+    await onSend(fullMessage)
     setSending(false)
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[92vh]">
         <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">입찰 공고 작성</h2>
+            <h2 className="text-lg font-bold text-slate-800">입찰공고 작성</h2>
             <p className="text-xs text-slate-400 mt-0.5">
               발송 대상:{' '}
               {workerCount === null ? '확인 중...' : (
@@ -357,16 +359,41 @@ function NoticeModal({
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+
+          {/* 프로젝트 기본 정보 (자동) */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">메시지 내용</label>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">기본 공고 내용 (자동)</p>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 space-y-1.5">
+              {[
+                { label: '프로젝트', value: project.name },
+                project.exhibition ? { label: '전시', value: project.exhibition } : null,
+                dateRange ? { label: '전시일정', value: dateRange } : null,
+                project.construction_date ? { label: '시공일', value: project.construction_date.replace(/-/g, '.') } : null,
+                project.demolition_date ? { label: '철거일', value: project.demolition_date.replace(/-/g, '.') } : null,
+                project.notes ? { label: '내용', value: project.notes } : null,
+              ].filter(Boolean).map((item) => item && (
+                <div key={item.label} className="flex gap-2 text-sm">
+                  <span className="text-slate-400 w-16 flex-shrink-0 text-xs pt-0.5">{item.label}</span>
+                  <span className="text-slate-700">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 추가 내용 */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              추가 안내사항
+              <span className="ml-1.5 text-xs font-normal text-slate-400">작업 범위, 준비물, 특이사항 등</span>
+            </label>
             <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={10}
-              className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none font-mono leading-relaxed"
+              value={extraContent}
+              onChange={(e) => setExtraContent(e.target.value)}
+              rows={5}
+              placeholder={`예시:\n- 작업 면적: 약 300㎡\n- 필요 인원: 4~6명\n- 준비물: 전동공구 지참\n- 현장 주차 가능`}
+              className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none leading-relaxed"
             />
-            <p className="text-xs text-slate-400 mt-1">입찰 참여 링크(버튼)는 자동으로 포함됩니다.</p>
           </div>
 
           {/* 미리보기 */}
@@ -378,7 +405,7 @@ function NoticeModal({
                 <span className="text-xs font-semibold text-slate-700">아소시스템</span>
               </div>
               <div className="bg-white rounded-lg px-3 py-2.5 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed shadow-sm border border-yellow-100">
-                {content}
+                {fullMessage}
               </div>
               <div className="mt-2">
                 <div className="bg-yellow-400 text-white text-xs font-semibold text-center py-2 rounded-lg">
@@ -394,7 +421,7 @@ function NoticeModal({
             className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">
             취소
           </button>
-          <button onClick={handleSend} disabled={sending || !content.trim()}
+          <button onClick={handleSend} disabled={sending}
             className="flex-1 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-50">
             {sending ? '발송 중...' : `발송하기${workerCount ? ` (${workerCount}명)` : ''}`}
           </button>
@@ -422,6 +449,7 @@ export default function ProjectDetail() {
   const [selectingVendor, setSelectingVendor] = useState(false)
   const [orderVendor, setOrderVendor] = useState<Vendor | null>(null)
   const [uploadingPoId, setUploadingPoId] = useState<string | null>(null)
+  const [uploadingFile, setUploadingFile] = useState<'design' | 'drawing' | null>(null)
   const [txSearch, setTxSearch] = useState('')
   const [editingTx, setEditingTx] = useState<InventoryTransaction | null>(null)
   const [bids, setBids] = useState<ProjectBid[]>([])
@@ -508,6 +536,23 @@ export default function ProjectDetail() {
     if (!project || !id) return
     const { error } = await supabase.from('wms_projects').update({ status: newStatus }).eq('id', id)
     if (!error) { setProject({ ...project, status: newStatus }); setEditingStatus(false) }
+  }
+
+  const handleProjectFileUpload = async (field: 'design' | 'drawing', file: File) => {
+    if (!id) return
+    setUploadingFile(field)
+    try {
+      const ext = file.name.split('.').pop()
+      const path = `${id}/${field}-${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage.from('project-files').upload(path, file, { upsert: true })
+      if (uploadError) throw uploadError
+      const { data: urlData } = supabase.storage.from('project-files').getPublicUrl(path)
+      const column = field === 'design' ? 'design_file_url' : 'drawing_file_url'
+      await supabase.from('wms_projects').update({ [column]: urlData.publicUrl }).eq('id', id)
+      fetchProjectData()
+    } finally {
+      setUploadingFile(null)
+    }
   }
 
   const handleFileUpload = async (poId: string, file: File) => {
@@ -612,6 +657,18 @@ export default function ProjectDetail() {
                   <p className="text-slate-700 font-medium">{project.return_date.replace(/-/g, '.')}</p>
                 </div>
               )}
+              {project.construction_date && (
+                <div>
+                  <span className="text-slate-400 text-xs">시공일</span>
+                  <p className="text-slate-700 font-medium">{project.construction_date.replace(/-/g, '.')}</p>
+                </div>
+              )}
+              {project.demolition_date && (
+                <div>
+                  <span className="text-slate-400 text-xs">철거일</span>
+                  <p className="text-slate-700 font-medium">{project.demolition_date.replace(/-/g, '.')}</p>
+                </div>
+              )}
             </div>
             {project.notes && <p className="text-sm text-slate-500 mt-3 bg-slate-50 px-3 py-2 rounded-lg">{project.notes}</p>}
           </div>
@@ -635,6 +692,63 @@ export default function ProjectDetail() {
                 <button onClick={() => setEditingStatus(true)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><Edit2 size={14} /></button>
               </>
             )}
+          </div>
+        </div>
+
+        {/* 첨부파일 */}
+        <div className="mt-5 pt-5 border-t border-slate-100">
+          <div className="flex items-center gap-2 mb-3">
+            <Paperclip size={14} className="text-slate-400" />
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">첨부파일</span>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {/* 시공디자인 파일 */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 w-20">시공디자인</span>
+              {project.design_file_url ? (
+                <div className="flex items-center gap-1.5">
+                  <a href={project.design_file_url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-700 bg-violet-50 px-2.5 py-1 rounded-lg border border-violet-200 transition-colors">
+                    <Download size={11} />보기
+                  </a>
+                  <label className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 cursor-pointer transition-colors">
+                    <Pencil size={11} />교체
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,.dwg" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleProjectFileUpload('design', f) }} />
+                  </label>
+                </div>
+              ) : (
+                <label className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border cursor-pointer transition-colors ${uploadingFile === 'design' ? 'text-slate-400 bg-slate-50 border-slate-200' : 'text-slate-600 bg-slate-50 hover:bg-violet-50 hover:text-violet-700 hover:border-violet-200 border-slate-200'}`}>
+                  <Paperclip size={11} />{uploadingFile === 'design' ? '업로드 중...' : '파일 첨부'}
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png,.dwg" className="hidden" disabled={uploadingFile === 'design'}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleProjectFileUpload('design', f) }} />
+                </label>
+              )}
+            </div>
+
+            {/* 도면 파일 */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 w-20">도면</span>
+              {project.drawing_file_url ? (
+                <div className="flex items-center gap-1.5">
+                  <a href={project.drawing_file_url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-700 bg-violet-50 px-2.5 py-1 rounded-lg border border-violet-200 transition-colors">
+                    <Download size={11} />보기
+                  </a>
+                  <label className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200 cursor-pointer transition-colors">
+                    <Pencil size={11} />교체
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,.dwg" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleProjectFileUpload('drawing', f) }} />
+                  </label>
+                </div>
+              ) : (
+                <label className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border cursor-pointer transition-colors ${uploadingFile === 'drawing' ? 'text-slate-400 bg-slate-50 border-slate-200' : 'text-slate-600 bg-slate-50 hover:bg-violet-50 hover:text-violet-700 hover:border-violet-200 border-slate-200'}`}>
+                  <Paperclip size={11} />{uploadingFile === 'drawing' ? '업로드 중...' : '파일 첨부'}
+                  <input type="file" accept=".pdf,.jpg,.jpeg,.png,.dwg" className="hidden" disabled={uploadingFile === 'drawing'}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleProjectFileUpload('drawing', f) }} />
+                </label>
+              )}
+            </div>
           </div>
         </div>
 
@@ -968,7 +1082,7 @@ export default function ProjectDetail() {
               disabled={sendingNotice}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-50"
             >
-              <Send size={12} />{sendingNotice ? '발송 중...' : '입찰 공고 발송'}
+              <Send size={12} />{sendingNotice ? '발송 중...' : '입찰공고 작성'}
             </button>
           </div>
         </div>

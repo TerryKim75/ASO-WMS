@@ -41,6 +41,10 @@ export interface WmsProject {
   construction_staff?: ConstructionStaff[]
   shipping_date?: string
   return_date?: string
+  construction_date?: string
+  demolition_date?: string
+  design_file_url?: string
+  drawing_file_url?: string
   notes?: string
   created_at: string
 }
