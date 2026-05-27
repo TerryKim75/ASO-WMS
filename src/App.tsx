@@ -8,6 +8,7 @@ import Projects from './pages/Projects'
 import ProjectDetail from './pages/ProjectDetail'
 import ConstructionStaff from './pages/ConstructionStaff'
 import Vendors from './pages/Vendors'
+import WorkReport from './pages/WorkReport'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="staff" element={<ConstructionStaff />} />
             <Route path="vendors" element={<Vendors />} />
+            <Route path="work-report" element={<WorkReport />} />
           </Route>
         </Routes>
       </CategoriesProvider>

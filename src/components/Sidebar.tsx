@@ -7,6 +7,7 @@ import {
   Hammer,
   Building2,
   ChevronRight,
+  ClipboardList,
 } from 'lucide-react'
 import { useCategories, CATEGORY_COLORS } from '../contexts/CategoriesContext'
 
@@ -17,6 +18,7 @@ const navItems = [
   { to: '/projects', label: '프로젝트', icon: FolderKanban },
   { to: '/staff', label: '시공인력', icon: Hammer },
   { to: '/vendors', label: '발주처', icon: Building2 },
+  { to: '/work-report', label: '업무보고서', icon: ClipboardList },
 ]
 
 export default function Sidebar() {
