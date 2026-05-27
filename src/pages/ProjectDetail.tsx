@@ -10,6 +10,7 @@ import type { WmsProject, ProjectStatus, Item, InventoryTransaction, ProjectBid 
 import { STATUS_COLORS } from './Projects'
 import TransactionModal from '../components/TransactionModal'
 import PurchaseOrderModal from '../components/PurchaseOrderModal'
+import AddProjectModal from '../components/AddProjectModal'
 
 const STATUSES: ProjectStatus[] = ['제안중', '계약완료', '시공진행', '완료', '취소']
 
@@ -297,6 +298,81 @@ function BulkTransactionModal({
 }
 
 
+const PO_STATUSES = ['발주중', '납품완료', '취소']
+
+function EditPurchaseOrderModal({
+  po, onClose, onSuccess,
+}: { po: PurchaseOrder; onClose: () => void; onSuccess: () => void }) {
+  const [form, setForm] = useState({
+    order_date: po.order_date,
+    delivery_date: po.delivery_date || '',
+    status: po.status,
+    notes: po.notes || '',
+  })
+  const [saving, setSaving] = useState(false)
+  const ic = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500'
+
+  const handleSave = async () => {
+    setSaving(true)
+    await supabase.from('purchase_orders').update({
+      order_date: form.order_date,
+      delivery_date: form.delivery_date || null,
+      status: form.status,
+      notes: form.notes.trim() || null,
+    }).eq('id', po.id)
+    setSaving(false)
+    onSuccess()
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <div>
+            <h3 className="font-bold text-slate-800">발주서 수정</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{po.order_number}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">상태</label>
+            <div className="flex gap-2">
+              {PO_STATUSES.map((s) => (
+                <button key={s} type="button" onClick={() => setForm({ ...form, status: s })}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-colors ${form.status === s ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-600 border-slate-300 hover:border-violet-400'}`}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">발주일</label>
+              <input type="date" value={form.order_date} onChange={(e) => setForm({ ...form, order_date: e.target.value })} className={ic} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">납기일</label>
+              <input type="date" value={form.delivery_date} onChange={(e) => setForm({ ...form, delivery_date: e.target.value })} className={ic} />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">비고</label>
+            <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className={`${ic} resize-none`} />
+          </div>
+        </div>
+        <div className="flex gap-3 px-5 py-4 border-t bg-slate-50">
+          <button onClick={onClose} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg">취소</button>
+          <button onClick={handleSave} disabled={saving} className="flex-1 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg disabled:opacity-50">
+            {saving ? '저장 중...' : '저장'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function NoticeModal({
   project,
   onClose,
@@ -453,6 +529,8 @@ export default function ProjectDetail() {
   const [txSearch, setTxSearch] = useState('')
   const [editingTx, setEditingTx] = useState<InventoryTransaction | null>(null)
   const [bids, setBids] = useState<ProjectBid[]>([])
+  const [showEditProject, setShowEditProject] = useState(false)
+  const [editingPo, setEditingPo] = useState<PurchaseOrder | null>(null)
   const [showNoticeModal, setShowNoticeModal] = useState(false)
   const [sendingNotice, setSendingNotice] = useState(false)
   const [noticeResult, setNoticeResult] = useState<{ ok: boolean; msg: string } | null>(null)
@@ -480,6 +558,12 @@ export default function ProjectDetail() {
     } finally {
       setSendingNotice(false)
     }
+  }
+
+  const handleDeletePo = async (poId: string) => {
+    if (!window.confirm('발주서를 삭제하시겠습니까?')) return
+    await supabase.from('purchase_orders').delete().eq('id', poId)
+    fetchProjectData()
   }
 
   const handleBidStatus = async (bidId: string, status: '낙찰' | '거절') => {
@@ -673,7 +757,7 @@ export default function ProjectDetail() {
             {project.notes && <p className="text-sm text-slate-500 mt-3 bg-slate-50 px-3 py-2 rounded-lg">{project.notes}</p>}
           </div>
 
-          {/* 진행현황 편집 */}
+          {/* 진행현황 + 수정 버튼 */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {editingStatus ? (
               <>
@@ -689,7 +773,11 @@ export default function ProjectDetail() {
                 <span className={`px-3 py-1 text-sm font-medium rounded-full border ${STATUS_COLORS[project.status] || 'bg-slate-100 text-slate-600'}`}>
                   {project.status}
                 </span>
-                <button onClick={() => setEditingStatus(true)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg"><Edit2 size={14} /></button>
+                <button onClick={() => setEditingStatus(true)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg" title="상태 변경"><Edit2 size={14} /></button>
+                <button onClick={() => setShowEditProject(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-violet-100 hover:text-violet-700 rounded-lg transition-colors">
+                  <Edit2 size={12} />프로젝트 수정
+                </button>
               </>
             )}
           </div>
@@ -1015,13 +1103,14 @@ export default function ProjectDetail() {
                 <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs">금액</th>
                 <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs">상태</th>
                 <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs">첨부파일</th>
+                <th className="px-4 py-3 w-20" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {purchaseOrders.length === 0 ? (
-                <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-400 text-sm">등록된 발주서가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-8 text-center text-slate-400 text-sm">등록된 발주서가 없습니다.</td></tr>
               ) : purchaseOrders.map((po) => (
-                <tr key={po.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={po.id} className="hover:bg-slate-50 transition-colors group">
                   <td className="px-5 py-3 font-medium text-slate-800">
                     {po.vendors?.name || '-'}
                     {po.vendors?.contact_name && <span className="text-xs text-slate-400 ml-1.5">({po.vendors.contact_name})</span>}
@@ -1053,6 +1142,18 @@ export default function ProjectDetail() {
                           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(po.id, f) }} />
                       </label>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => setEditingPo(po)}
+                        className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
+                        <Edit2 size={13} />
+                      </button>
+                      <button onClick={() => handleDeletePo(po.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1152,6 +1253,24 @@ export default function ProjectDetail() {
           </table>
         </div>
       </div>
+
+      {/* 프로젝트 수정 모달 */}
+      {showEditProject && project && (
+        <AddProjectModal
+          project={project}
+          onClose={() => setShowEditProject(false)}
+          onSuccess={() => { setShowEditProject(false); fetchProjectData() }}
+        />
+      )}
+
+      {/* 발주서 수정 모달 */}
+      {editingPo && (
+        <EditPurchaseOrderModal
+          po={editingPo}
+          onClose={() => setEditingPo(null)}
+          onSuccess={fetchProjectData}
+        />
+      )}
 
       {/* 입찰 공고 작성 모달 */}
       {showNoticeModal && project && (
