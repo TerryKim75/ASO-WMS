@@ -297,6 +297,113 @@ function BulkTransactionModal({
 }
 
 
+function NoticeModal({
+  project,
+  onClose,
+  onSend,
+}: {
+  project: WmsProject
+  onClose: () => void
+  onSend: (content: string) => Promise<void>
+}) {
+  const [workerCount, setWorkerCount] = useState<number | null>(null)
+  const [sending, setSending] = useState(false)
+
+  const dateRange = project.start_date
+    ? `${project.start_date.replace(/-/g, '.')}${project.end_date ? ` ~ ${project.end_date.replace(/-/g, '.')}` : ''}`
+    : ''
+
+  const defaultContent = [
+    '[아소시스템] 시공 입찰 공고',
+    '',
+    `프로젝트: ${project.name}`,
+    project.exhibition ? `전시: ${project.exhibition}` : null,
+    dateRange ? `일정: ${dateRange}` : null,
+    project.notes ? `내용: ${project.notes}` : null,
+    '',
+    '시공 참여를 원하시면 아래 버튼을 눌러 가격을 제안해 주세요.',
+  ].filter(Boolean).join('\n')
+
+  const [content, setContent] = useState(defaultContent)
+
+  useEffect(() => {
+    supabase
+      .from('construction_workers')
+      .select('id', { count: 'exact', head: true })
+      .not('phone', 'is', null)
+      .then(({ count }) => setWorkerCount(count ?? 0))
+  }, [])
+
+  const handleSend = async () => {
+    if (!content.trim()) return
+    setSending(true)
+    await onSend(content)
+    setSending(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">입찰 공고 작성</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              발송 대상:{' '}
+              {workerCount === null ? '확인 중...' : (
+                <span className="text-violet-600 font-semibold">시공인력 {workerCount}명</span>
+              )}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">메시지 내용</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={10}
+              className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none font-mono leading-relaxed"
+            />
+            <p className="text-xs text-slate-400 mt-1">입찰 참여 링크(버튼)는 자동으로 포함됩니다.</p>
+          </div>
+
+          {/* 미리보기 */}
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">카카오 메시지 미리보기</p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center text-xs font-bold text-white">A</div>
+                <span className="text-xs font-semibold text-slate-700">아소시스템</span>
+              </div>
+              <div className="bg-white rounded-lg px-3 py-2.5 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed shadow-sm border border-yellow-100">
+                {content}
+              </div>
+              <div className="mt-2">
+                <div className="bg-yellow-400 text-white text-xs font-semibold text-center py-2 rounded-lg">
+                  입찰 참여하기 →
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 px-6 py-4 border-t bg-slate-50 flex-shrink-0">
+          <button onClick={onClose}
+            className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">
+            취소
+          </button>
+          <button onClick={handleSend} disabled={sending || !content.trim()}
+            className="flex-1 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-50">
+            {sending ? '발송 중...' : `발송하기${workerCount ? ` (${workerCount}명)` : ''}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -318,6 +425,7 @@ export default function ProjectDetail() {
   const [txSearch, setTxSearch] = useState('')
   const [editingTx, setEditingTx] = useState<InventoryTransaction | null>(null)
   const [bids, setBids] = useState<ProjectBid[]>([])
+  const [showNoticeModal, setShowNoticeModal] = useState(false)
   const [sendingNotice, setSendingNotice] = useState(false)
   const [noticeResult, setNoticeResult] = useState<{ ok: boolean; msg: string } | null>(null)
 
@@ -328,14 +436,14 @@ export default function ProjectDetail() {
     fetchProjectData()
   }
 
-  const handleSendNotice = async () => {
+  const handleSendNotice = async (messageContent: string) => {
     if (!id) return
-    if (!window.confirm('모든 시공인력에게 카카오 입찰 공고를 발송하시겠습니까?')) return
     setSendingNotice(true)
     setNoticeResult(null)
+    setShowNoticeModal(false)
     try {
       const { data, error } = await supabase.functions.invoke('send-kakao-notice', {
-        body: { projectId: id },
+        body: { projectId: id, messageContent },
       })
       if (error) throw error
       setNoticeResult({ ok: true, msg: `${data.sentCount}명에게 발송 완료` })
@@ -856,7 +964,7 @@ export default function ProjectDetail() {
               </span>
             )}
             <button
-              onClick={handleSendNotice}
+              onClick={() => setShowNoticeModal(true)}
               disabled={sendingNotice}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-50"
             >
@@ -930,6 +1038,15 @@ export default function ProjectDetail() {
           </table>
         </div>
       </div>
+
+      {/* 입찰 공고 작성 모달 */}
+      {showNoticeModal && project && (
+        <NoticeModal
+          project={project}
+          onClose={() => setShowNoticeModal(false)}
+          onSend={handleSendNotice}
+        />
+      )}
 
       {/* 내역 수정 모달 */}
       {editingTx && (
