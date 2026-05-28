@@ -106,7 +106,14 @@ export default function Employees() {
     fetchEmployees()
   }
 
-  const filtered = employees.filter((e) => filter === '전체' || e.status === filter)
+  const RANK_ORDER: Record<string, number> = { '대표': 0, '실장': 1, '과장': 2, '부장': 3 }
+  const filtered = employees
+    .filter((e) => filter === '전체' || e.status === filter)
+    .sort((a, b) => {
+      const ra = RANK_ORDER[a.position ?? ''] ?? 99
+      const rb = RANK_ORDER[b.position ?? ''] ?? 99
+      return ra - rb
+    })
   const activeCount = employees.filter((e) => e.status === '재직').length
 
   return (
