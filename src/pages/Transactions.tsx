@@ -11,6 +11,9 @@ const typeBadge: Record<TransactionType, string> = {
   출고: 'bg-red-100 text-red-700',
   반입: 'bg-blue-100 text-blue-700',
   손실: 'bg-orange-100 text-orange-700',
+  팩킹: 'bg-slate-100 text-slate-600',
+  파손: 'bg-amber-100 text-amber-700',
+  분실: 'bg-rose-100 text-rose-700',
 }
 
 type DeliveryStatus = '준비중' | '출고' | '입고완료'
