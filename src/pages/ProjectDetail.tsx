@@ -2,13 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Edit2, Check, X, Phone, Mail, Users,
-  FileText, Paperclip, Search, Building2, ChevronDown, ChevronRight,
-  AlertCircle, Trash2, Send, Pencil, Download,
+  FileText, Paperclip, Search, Building2,
+  Trash2, Send, Pencil, Download, Printer,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { WmsProject, ProjectStatus, Item, InventoryTransaction, ProjectBid } from '../types'
 import { STATUS_COLORS } from './Projects'
-import TransactionModal from '../components/TransactionModal'
 import PurchaseOrderModal from '../components/PurchaseOrderModal'
 import AddProjectModal from '../components/AddProjectModal'
 
@@ -36,80 +35,18 @@ interface PurchaseOrder {
 // 자재별 집계
 interface ItemSummary {
   item: Item
+  totalPacking: number
   totalOut: number
   totalReturn: number
-  totalLoss: number
+  totalDamaged: number
+  totalLost: number
+  totalLegacyLoss: number
   unreturned: number
   transactions: InventoryTransaction[]
 }
 
-const typeBadge: Record<string, string> = {
-  입고: 'bg-green-100 text-green-700',
-  출고: 'bg-red-100 text-red-700',
-  반입: 'bg-blue-100 text-blue-700',
-  손실: 'bg-orange-100 text-orange-700',
-}
-
-const PROJECT_TX_TYPES = ['출고', '반입', '손실'] as const
-
-function EditTransactionDialog({
-  tx, onSave, onClose,
-}: { tx: InventoryTransaction; onSave: (updates: { transaction_type: string; quantity: number; transaction_date: string; notes: string }) => void; onClose: () => void }) {
-  const [form, setForm] = useState({
-    transaction_type: tx.transaction_type as string,
-    quantity: tx.quantity,
-    transaction_date: tx.transaction_date,
-    notes: tx.notes || '',
-  })
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
-        <div className="flex items-center justify-between px-5 py-4 border-b">
-          <h3 className="font-bold text-slate-800">내역 수정</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-        </div>
-        <div className="p-5 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">구분</label>
-            <div className="flex gap-2">
-              {PROJECT_TX_TYPES.map((t) => (
-                <button key={t} type="button"
-                  onClick={() => setForm({ ...form, transaction_type: t })}
-                  className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                    form.transaction_type === t
-                      ? 'bg-violet-600 text-white border-violet-600'
-                      : 'bg-white text-slate-600 border-slate-300 hover:border-violet-400'
-                  }`}>{t}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">수량</label>
-            <input type="number" value={form.quantity} min={1}
-              onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">날짜</label>
-            <input type="date" value={form.transaction_date}
-              onChange={(e) => setForm({ ...form, transaction_date: e.target.value })}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">비고</label>
-            <input type="text" value={form.notes} placeholder="메모 (선택)"
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
-          </div>
-        </div>
-        <div className="flex gap-3 px-5 py-4 border-t bg-slate-50">
-          <button onClick={onClose} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg">취소</button>
-          <button onClick={() => onSave(form)} className="flex-1 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg">저장</button>
-        </div>
-      </div>
-    </div>
-  )
-}
+type ItemQty = { packing: number; out: number; inp: number; damaged: number; lost: number; notes: string }
+const emptyItemQty = (): ItemQty => ({ packing: 0, out: 0, inp: 0, damaged: 0, lost: 0, notes: '' })
 
 function VendorSelectDialog({
   vendors, onSelect, onClose,
@@ -155,33 +92,81 @@ function BulkTransactionModal({
 }: { items: Item[]; projectId: string; onClose: () => void; onSuccess: () => void }) {
   const today = new Date().toISOString().split('T')[0]
   const [date, setDate] = useState(today)
-  const [notes, setNotes] = useState('')
   const [search, setSearch] = useState('')
-  const [quantities, setQuantities] = useState<Record<string, { out: number; inp: number; loss: number }>>({})
+  const [quantities, setQuantities] = useState<Record<string, ItemQty>>({})
   const [loading, setLoading] = useState(false)
+  const [initLoading, setInitLoading] = useState(true)
 
-  const updateQty = (itemId: string, field: 'out' | 'inp' | 'loss', value: number) => {
+  // Preload existing transactions for this project
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { data } = await supabase
+          .from('inventory_transactions')
+          .select('item_id, transaction_type, quantity, notes')
+          .eq('project_id', projectId)
+        if (data && data.length > 0) {
+          const map: Record<string, ItemQty> = {}
+          data.forEach((tx) => {
+            if (!map[tx.item_id]) map[tx.item_id] = emptyItemQty()
+            const n = tx.notes || ''
+            if (tx.transaction_type === '팩킹') { map[tx.item_id].packing += tx.quantity; if (n) map[tx.item_id].notes = n }
+            else if (tx.transaction_type === '출고') { map[tx.item_id].out += tx.quantity; if (n) map[tx.item_id].notes = n }
+            else if (tx.transaction_type === '반입') { map[tx.item_id].inp += tx.quantity; if (n) map[tx.item_id].notes = n }
+            else if (tx.transaction_type === '파손') { map[tx.item_id].damaged += tx.quantity; if (n) map[tx.item_id].notes = n }
+            else if (tx.transaction_type === '분실') { map[tx.item_id].lost += tx.quantity; if (n) map[tx.item_id].notes = n }
+          })
+          setQuantities(map)
+        }
+      } finally {
+        setInitLoading(false)
+      }
+    }
+    load()
+  }, [projectId])
+
+  const updateQty = (itemId: string, field: keyof Omit<ItemQty, 'notes'>, value: number) => {
     setQuantities((prev) => {
-      const existing = prev[itemId] || { out: 0, inp: 0, loss: 0 }
+      const existing = prev[itemId] || emptyItemQty()
       return { ...prev, [itemId]: { ...existing, [field]: Math.max(0, value) } }
     })
   }
 
+  const updateNotes = (itemId: string, notes: string) => {
+    setQuantities((prev) => {
+      const existing = prev[itemId] || emptyItemQty()
+      return { ...prev, [itemId]: { ...existing, notes } }
+    })
+  }
+
   const handleSubmit = async () => {
-    const rows: { item_id: string; transaction_type: string; quantity: number }[] = []
+    const rows: { item_id: string; transaction_type: string; quantity: number; notes: string | null }[] = []
     Object.entries(quantities).forEach(([itemId, q]) => {
-      if (q.out > 0) rows.push({ item_id: itemId, transaction_type: '출고', quantity: q.out })
-      if (q.inp > 0) rows.push({ item_id: itemId, transaction_type: '반입', quantity: q.inp })
-      if (q.loss > 0) rows.push({ item_id: itemId, transaction_type: '손실', quantity: q.loss })
+      const n = q.notes.trim() || null
+      if (q.packing > 0) rows.push({ item_id: itemId, transaction_type: '팩킹', quantity: q.packing, notes: n })
+      if (q.out > 0) rows.push({ item_id: itemId, transaction_type: '출고', quantity: q.out, notes: n })
+      if (q.inp > 0) rows.push({ item_id: itemId, transaction_type: '반입', quantity: q.inp, notes: n })
+      if (q.damaged > 0) rows.push({ item_id: itemId, transaction_type: '파손', quantity: q.damaged, notes: n })
+      if (q.lost > 0) rows.push({ item_id: itemId, transaction_type: '분실', quantity: q.lost, notes: n })
     })
     if (rows.length === 0) { alert('수량을 1개 이상 입력해주세요.'); return }
     setLoading(true)
     try {
-      await supabase.from('inventory_transactions').insert(
-        rows.map((r) => ({ ...r, project_id: projectId, transaction_date: date, notes: notes.trim() || null }))
+      // Delete only the items being saved, then reinsert
+      const itemIds = [...new Set(rows.map((r) => r.item_id))]
+      const { error: delErr } = await supabase.from('inventory_transactions').delete()
+        .eq('project_id', projectId)
+        .in('item_id', itemIds)
+      if (delErr) throw delErr
+      const { error: insErr } = await supabase.from('inventory_transactions').insert(
+        rows.map((r) => ({ ...r, project_id: projectId, transaction_date: date }))
       )
+      if (insErr) throw insErr
       onSuccess()
       onClose()
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message || String(err)
+      alert(`저장 실패: ${msg}\n\nSupabase SQL Editor에서 transaction_type 제약조건을 업데이트해주세요.`)
     } finally {
       setLoading(false)
     }
@@ -192,15 +177,19 @@ function BulkTransactionModal({
     it.category.toLowerCase().includes(search.toLowerCase())
   )
 
-  const totalEntries = Object.values(quantities).filter((q) => q.out > 0 || q.inp > 0 || q.loss > 0).length
+  const totalEntries = Object.values(quantities).filter(
+    (q) => q.packing > 0 || q.out > 0 || q.inp > 0 || q.damaged > 0 || q.lost > 0
+  ).length
+
+  const inputCls = 'w-full text-center border border-slate-300 rounded-lg px-1 py-1.5 text-sm focus:outline-none focus:ring-1'
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh]">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
           <div className="flex items-center gap-3">
-            <h3 className="font-bold text-slate-800 text-lg">입출고 내역 작성</h3>
+            <h3 className="font-bold text-slate-800 text-lg">입출고 내역 작성 및 수정</h3>
             {totalEntries > 0 && (
               <span className="text-xs font-medium text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
                 {totalEntries}개 자재 입력됨
@@ -210,86 +199,94 @@ function BulkTransactionModal({
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
 
-        {/* 날짜 / 비고 / 검색 */}
+        {/* 날짜 / 검색 */}
         <div className="px-6 py-3 border-b flex-shrink-0 flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-slate-600 whitespace-nowrap">날짜</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
               className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
           </div>
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <label className="text-sm font-medium text-slate-600 whitespace-nowrap">비고</label>
-            <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="메모 (선택)"
-              className="flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
-          </div>
-          <div className="relative">
+          <div className="relative ml-auto">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="자재 검색..."
-              className="pl-7 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm w-36 focus:outline-none focus:ring-2 focus:ring-violet-500" />
+              className="pl-7 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm w-40 focus:outline-none focus:ring-2 focus:ring-violet-500" />
           </div>
         </div>
 
         {/* 자재 테이블 */}
         <div className="overflow-y-auto flex-1">
+          {initLoading ? (
+            <div className="py-16 text-center text-slate-400 text-sm">기존 내역 불러오는 중...</div>
+          ) : (
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-slate-50 z-10 border-b border-slate-200">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">카테고리</th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">자재명</th>
-                <th className="text-center px-3 py-3 font-semibold text-red-700 text-xs w-24">출고</th>
-                <th className="text-center px-3 py-3 font-semibold text-blue-700 text-xs w-24">반입</th>
-                <th className="text-center px-3 py-3 font-semibold text-orange-700 text-xs w-24">손실</th>
-                <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs w-20">미반입</th>
+                <th className="text-left px-3 py-3 font-semibold text-slate-600 text-xs">카테고리</th>
+                <th className="text-left px-3 py-3 font-semibold text-slate-600 text-xs">자재명</th>
+                <th className="text-center px-2 py-3 font-semibold text-slate-600 text-xs w-20">팩킹</th>
+                <th className="text-center px-2 py-3 font-semibold text-red-700 text-xs w-20">출고</th>
+                <th className="text-center px-2 py-3 font-semibold text-blue-700 text-xs w-20">반입</th>
+                <th className="text-center px-2 py-3 font-semibold text-amber-700 text-xs w-20">파손</th>
+                <th className="text-center px-2 py-3 font-semibold text-rose-700 text-xs w-20">분실</th>
+                <th className="text-left px-3 py-3 font-semibold text-slate-600 text-xs">비고</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map((item) => {
-                const q = quantities[item.id] || { out: 0, inp: 0, loss: 0 }
-                const unreturned = q.out - q.inp - q.loss
-                const hasAny = q.out > 0 || q.inp > 0 || q.loss > 0
+                const q = quantities[item.id] || emptyItemQty()
+                const hasAny = q.packing > 0 || q.out > 0 || q.inp > 0 || q.damaged > 0 || q.lost > 0
                 return (
                   <tr key={item.id} className={`transition-colors ${hasAny ? 'bg-violet-50/40' : 'hover:bg-slate-50/60'}`}>
-                    <td className="px-4 py-2.5 text-xs text-slate-500 whitespace-nowrap">{item.category}</td>
-                    <td className="px-4 py-2.5">
-                      <p className="font-medium text-slate-800">{item.name}</p>
+                    <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{item.category}</td>
+                    <td className="px-3 py-2">
+                      <p className="font-medium text-slate-800 text-sm">{item.name}</p>
                       <p className="text-xs text-slate-400">{item.unit}</p>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-2 py-2">
+                      <input type="number" min={0} value={q.packing || ''}
+                        onChange={(e) => updateQty(item.id, 'packing', Number(e.target.value))}
+                        placeholder="0" className={`${inputCls} focus:ring-slate-400`} />
+                    </td>
+                    <td className="px-2 py-2">
                       <input type="number" min={0} value={q.out || ''}
                         onChange={(e) => updateQty(item.id, 'out', Number(e.target.value))}
-                        placeholder="0"
-                        className="w-full text-center border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" />
+                        placeholder="0" className={`${inputCls} focus:ring-red-400`} />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-2 py-2">
                       <input type="number" min={0} value={q.inp || ''}
                         onChange={(e) => updateQty(item.id, 'inp', Number(e.target.value))}
-                        placeholder="0"
-                        className="w-full text-center border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" />
+                        placeholder="0" className={`${inputCls} focus:ring-blue-400`} />
+                    </td>
+                    <td className="px-2 py-2">
+                      <input type="number" min={0} value={q.damaged || ''}
+                        onChange={(e) => updateQty(item.id, 'damaged', Number(e.target.value))}
+                        placeholder="0" className={`${inputCls} focus:ring-amber-400`} />
+                    </td>
+                    <td className="px-2 py-2">
+                      <input type="number" min={0} value={q.lost || ''}
+                        onChange={(e) => updateQty(item.id, 'lost', Number(e.target.value))}
+                        placeholder="0" className={`${inputCls} focus:ring-rose-400`} />
                     </td>
                     <td className="px-3 py-2">
-                      <input type="number" min={0} value={q.loss || ''}
-                        onChange={(e) => updateQty(item.id, 'loss', Number(e.target.value))}
-                        placeholder="0"
-                        className="w-full text-center border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent" />
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <span className={`font-semibold text-sm ${!hasAny ? 'text-slate-300' : unreturned > 0 ? 'text-red-600' : 'text-slate-500'}`}>
-                        {hasAny ? unreturned : '-'}
-                      </span>
+                      <input type="text" value={q.notes}
+                        onChange={(e) => updateNotes(item.id, e.target.value)}
+                        placeholder="메모"
+                        className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-violet-400" />
                     </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
+          )}
         </div>
 
         {/* Footer */}
         <div className="flex gap-3 px-6 py-4 border-t bg-slate-50 flex-shrink-0">
           <button onClick={onClose} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">취소</button>
-          <button onClick={handleSubmit} disabled={loading}
+          <button onClick={handleSubmit} disabled={loading || initLoading}
             className="flex-1 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-50">
-            {loading ? '저장 중...' : `저장${totalEntries > 0 ? ` (${totalEntries}개 자재)` : ''}`}
+            {loading ? '저장 중...' : '등록 및 수정'}
           </button>
         </div>
       </div>
@@ -436,8 +433,6 @@ function NoticeModal({
         </div>
 
         <div className="overflow-y-auto flex-1 p-6 space-y-5">
-
-          {/* 프로젝트 기본 정보 (자동) */}
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">기본 공고 내용 (자동)</p>
             <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 space-y-1.5">
@@ -457,7 +452,6 @@ function NoticeModal({
             </div>
           </div>
 
-          {/* 추가 내용 */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               추가 안내사항
@@ -472,7 +466,6 @@ function NoticeModal({
             />
           </div>
 
-          {/* 미리보기 */}
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">카카오 메시지 미리보기</p>
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
@@ -518,8 +511,6 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true)
   const [editingStatus, setEditingStatus] = useState(false)
   const [newStatus, setNewStatus] = useState<ProjectStatus>('제안중')
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [allItems, setAllItems] = useState<Item[]>([])
   const [selectingVendor, setSelectingVendor] = useState(false)
@@ -527,20 +518,14 @@ export default function ProjectDetail() {
   const [uploadingPoId, setUploadingPoId] = useState<string | null>(null)
   const [uploadingFile, setUploadingFile] = useState<'design' | 'drawing' | null>(null)
   const [txSearch, setTxSearch] = useState('')
-  const [editingTx, setEditingTx] = useState<InventoryTransaction | null>(null)
   const [bids, setBids] = useState<ProjectBid[]>([])
   const [showEditProject, setShowEditProject] = useState(false)
   const [editingPo, setEditingPo] = useState<PurchaseOrder | null>(null)
   const [showNoticeModal, setShowNoticeModal] = useState(false)
   const [sendingNotice, setSendingNotice] = useState(false)
   const [noticeResult, setNoticeResult] = useState<{ ok: boolean; msg: string } | null>(null)
-
-  const handleEditTx = async (updates: { transaction_type: string; quantity: number; transaction_date: string; notes: string }) => {
-    if (!editingTx) return
-    await supabase.from('inventory_transactions').update(updates).eq('id', editingTx.id)
-    setEditingTx(null)
-    fetchProjectData()
-  }
+  const [editingItemId, setEditingItemId] = useState<string | null>(null)
+  const [editingQty, setEditingQty] = useState<ItemQty>(emptyItemQty())
 
   const handleSendNotice = async (messageContent: string) => {
     if (!id) return
@@ -576,9 +561,32 @@ export default function ProjectDetail() {
     setBids((data || []) as ProjectBid[])
   }
 
-  const handleDeleteTx = async (txId: string) => {
-    if (!window.confirm('이 내역을 삭제하시겠습니까?')) return
-    await supabase.from('inventory_transactions').delete().eq('id', txId)
+  const handleDeleteItemTx = async (itemId: string, itemName: string) => {
+    if (!window.confirm(`${itemName}의 모든 입출고 내역을 삭제하시겠습니까?`)) return
+    await supabase.from('inventory_transactions').delete()
+      .eq('item_id', itemId)
+      .eq('project_id', id!)
+    fetchProjectData()
+  }
+
+  const handleInlineSave = async (itemId: string) => {
+    const today = new Date().toISOString().split('T')[0]
+    const n = editingQty.notes.trim() || null
+    const rows: { item_id: string; project_id: string; transaction_type: string; quantity: number; transaction_date: string; notes: string | null }[] = []
+    if (editingQty.packing > 0) rows.push({ item_id: itemId, project_id: id!, transaction_type: '팩킹', quantity: editingQty.packing, transaction_date: today, notes: n })
+    if (editingQty.out > 0) rows.push({ item_id: itemId, project_id: id!, transaction_type: '출고', quantity: editingQty.out, transaction_date: today, notes: n })
+    if (editingQty.inp > 0) rows.push({ item_id: itemId, project_id: id!, transaction_type: '반입', quantity: editingQty.inp, transaction_date: today, notes: n })
+    if (editingQty.damaged > 0) rows.push({ item_id: itemId, project_id: id!, transaction_type: '파손', quantity: editingQty.damaged, transaction_date: today, notes: n })
+    if (editingQty.lost > 0) rows.push({ item_id: itemId, project_id: id!, transaction_type: '분실', quantity: editingQty.lost, transaction_date: today, notes: n })
+    const { error: delErr } = await supabase.from('inventory_transactions').delete()
+      .eq('item_id', itemId)
+      .eq('project_id', id!)
+    if (delErr) { alert('저장 중 오류가 발생했습니다.'); return }
+    if (rows.length > 0) {
+      const { error: insErr } = await supabase.from('inventory_transactions').insert(rows)
+      if (insErr) { alert(`저장 실패: ${insErr.message}`); fetchProjectData(); return }
+    }
+    setEditingItemId(null)
     fetchProjectData()
   }
 
@@ -661,17 +669,24 @@ export default function ProjectDetail() {
       const item = tx.items as Item | undefined
       if (!item) return
       if (!map.has(item.id)) {
-        map.set(item.id, { item, totalOut: 0, totalReturn: 0, totalLoss: 0, unreturned: 0, transactions: [] })
+        map.set(item.id, { item, totalPacking: 0, totalOut: 0, totalReturn: 0, totalDamaged: 0, totalLost: 0, totalLegacyLoss: 0, unreturned: 0, transactions: [] })
       }
       const s = map.get(item.id)!
       s.transactions.push(tx)
+      if (tx.transaction_type === '팩킹') s.totalPacking += tx.quantity
       if (tx.transaction_type === '출고') s.totalOut += tx.quantity
       if (tx.transaction_type === '반입') s.totalReturn += tx.quantity
-      if (tx.transaction_type === '손실') s.totalLoss += tx.quantity
+      if (tx.transaction_type === '파손') s.totalDamaged += tx.quantity
+      if (tx.transaction_type === '분실') s.totalLost += tx.quantity
+      if (tx.transaction_type === '손실') s.totalLegacyLoss += tx.quantity
     })
     return [...map.values()]
-      .map((s) => ({ ...s, unreturned: s.totalOut - s.totalReturn - s.totalLoss }))
-      .sort((a, b) => b.totalOut - a.totalOut)
+      .map((s) => ({ ...s, unreturned: s.totalOut - s.totalReturn - s.totalDamaged - s.totalLost - s.totalLegacyLoss }))
+      .sort((a, b) => {
+        const totalA = a.totalPacking + a.totalOut + a.totalReturn + a.totalDamaged + a.totalLost + a.totalLegacyLoss
+        const totalB = b.totalPacking + b.totalOut + b.totalReturn + b.totalDamaged + b.totalLost + b.totalLegacyLoss
+        return totalB - totalA
+      })
   }, [transactions])
 
   const filteredSummaries = useMemo(() => {
@@ -682,13 +697,46 @@ export default function ProjectDetail() {
     )
   }, [itemSummaries, txSearch])
 
-  const toggleItem = (itemId: string) => {
-    setExpandedItems((prev) => {
-      const next = new Set(prev)
-      if (next.has(itemId)) next.delete(itemId)
-      else next.add(itemId)
-      return next
-    })
+  const handlePrintPacking = () => {
+    const packingItems = filteredSummaries.filter((s) => s.totalPacking > 0)
+    if (packingItems.length === 0) { alert('팩킹 수량이 입력된 자재가 없습니다.'); return }
+    const dateStr = new Date().toLocaleDateString('ko-KR')
+    const rows = packingItems.map((s, i) => `
+      <tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td>${s.item.category}</td>
+        <td>${s.item.name}</td>
+        <td style="text-align:center">${s.item.unit}</td>
+        <td style="text-align:center;font-weight:bold">${s.totalPacking.toLocaleString()}</td>
+        <td></td>
+      </tr>
+    `).join('')
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>팩킹 리스트</title>
+    <style>
+      body{font-family:'Malgun Gothic',sans-serif;padding:20px;font-size:13px}
+      h2{margin-bottom:4px;font-size:16px}
+      .sub{color:#666;font-size:11px;margin-bottom:14px}
+      table{width:100%;border-collapse:collapse}
+      th,td{border:1px solid #cbd5e1;padding:7px 10px;font-size:12px}
+      th{background:#f1f5f9;font-weight:600;text-align:left}
+      @media print{body{padding:10px}}
+    </style></head><body>
+    <h2>팩킹 리스트</h2>
+    <div class="sub">${project?.name || ''} | ${dateStr}</div>
+    <table><thead><tr>
+      <th style="width:36px;text-align:center">No.</th>
+      <th>카테고리</th>
+      <th>자재명</th>
+      <th style="width:50px;text-align:center">단위</th>
+      <th style="width:72px;text-align:center">팩킹수량</th>
+      <th style="width:80px">확인</th>
+    </tr></thead><tbody>${rows}</tbody></table>
+    </body></html>`
+    const win = window.open('', '_blank')
+    if (!win) { alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.'); return }
+    win.document.write(html)
+    win.document.close()
+    setTimeout(() => win.print(), 300)
   }
 
   if (loading) return <div className="p-6 text-center text-slate-400 py-20">불러오는 중...</div>
@@ -699,10 +747,11 @@ export default function ProjectDetail() {
     </div>
   )
 
+  const totalPacking = itemSummaries.reduce((a, s) => a + s.totalPacking, 0)
   const totalOut = itemSummaries.reduce((a, s) => a + s.totalOut, 0)
   const totalReturn = itemSummaries.reduce((a, s) => a + s.totalReturn, 0)
-  const totalLoss = itemSummaries.reduce((a, s) => a + s.totalLoss, 0)
-  const totalUnreturned = totalOut - totalReturn - totalLoss
+  const totalDamagedLost = itemSummaries.reduce((a, s) => a + s.totalDamaged + s.totalLost + s.totalLegacyLoss, 0)
+  const totalUnreturned = itemSummaries.reduce((a, s) => a + s.unreturned, 0)
   const startDt = formatDatetime(project.start_date, project.start_time)
   const endDt = formatDatetime(project.end_date, project.end_time)
 
@@ -790,7 +839,6 @@ export default function ProjectDetail() {
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">첨부파일</span>
           </div>
           <div className="flex flex-wrap gap-3">
-            {/* 시공디자인 파일 */}
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 w-20">시공디자인</span>
               {project.design_file_url ? (
@@ -814,7 +862,6 @@ export default function ProjectDetail() {
               )}
             </div>
 
-            {/* 도면 파일 */}
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 w-20">도면</span>
               {project.drawing_file_url ? (
@@ -860,7 +907,11 @@ export default function ProjectDetail() {
         )}
 
         {/* 요약 수치 */}
-        <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100">
+        <div className="grid grid-cols-5 gap-4 mt-6 pt-6 border-t border-slate-100">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-slate-600">{totalPacking.toLocaleString()}</p>
+            <p className="text-xs text-slate-500 mt-1">팩킹</p>
+          </div>
           <div className="text-center">
             <p className="text-2xl font-bold text-red-600">{totalOut.toLocaleString()}</p>
             <p className="text-xs text-slate-500 mt-1">총 출고</p>
@@ -870,8 +921,8 @@ export default function ProjectDetail() {
             <p className="text-xs text-slate-500 mt-1">총 반입</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-orange-600">{totalLoss.toLocaleString()}</p>
-            <p className="text-xs text-slate-500 mt-1">총 손실</p>
+            <p className="text-2xl font-bold text-orange-600">{totalDamagedLost.toLocaleString()}</p>
+            <p className="text-xs text-slate-500 mt-1">파손/분실</p>
           </div>
           <div className="text-center">
             <p className={`text-2xl font-bold ${totalUnreturned > 0 ? 'text-red-600' : 'text-slate-400'}`}>
@@ -882,7 +933,7 @@ export default function ProjectDetail() {
         </div>
       </div>
 
-      {/* ─── 입출고 내역 (통합) ─── */}
+      {/* ─── 입출고 내역 ─── */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -894,7 +945,14 @@ export default function ProjectDetail() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {/* 검색 */}
+            {itemSummaries.some((s) => s.totalPacking > 0) && (
+              <button
+                onClick={handlePrintPacking}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                <Printer size={13} />팩킹 리스트 출력
+              </button>
+            )}
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -909,171 +967,165 @@ export default function ProjectDetail() {
               onClick={() => setShowBulkModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors"
             >
-              <Plus size={13} />입출고 내역 작성
+              <Plus size={13} />입출고 내역 작성 및 수정
             </button>
           </div>
         </div>
 
-        {/* 테이블 헤더 */}
+        {/* 테이블 */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="w-8 px-3 py-3" />
                 <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">카테고리</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">자재명</th>
-                <th className="text-center px-4 py-3 font-semibold text-red-700 text-xs">출고</th>
-                <th className="text-center px-4 py-3 font-semibold text-blue-700 text-xs">반입</th>
-                <th className="text-center px-4 py-3 font-semibold text-orange-700 text-xs">손실</th>
-                <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs">미반입</th>
+                <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs">팩킹</th>
+                <th className="text-center px-3 py-3 font-semibold text-red-700 text-xs">출고</th>
+                <th className="text-center px-3 py-3 font-semibold text-blue-700 text-xs">반입</th>
+                <th className="text-center px-3 py-3 font-semibold text-amber-700 text-xs">파손</th>
+                <th className="text-center px-3 py-3 font-semibold text-rose-700 text-xs">분실</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">비고</th>
-                <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs w-20">수정</th>
+                <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs w-24">수정</th>
               </tr>
             </thead>
             <tbody>
               {filteredSummaries.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-5 py-12 text-center text-slate-400 text-sm">
-                    {txSearch ? '검색 결과가 없습니다.' : '등록된 자재가 없습니다. 자재 등록 버튼으로 추가하세요.'}
+                    {txSearch ? '검색 결과가 없습니다.' : '등록된 내역이 없습니다. 입출고 내역 작성 및 수정 버튼으로 추가하세요.'}
                   </td>
                 </tr>
               ) : (
                 filteredSummaries.map((summary) => {
-                  const isExpanded = expandedItems.has(summary.item.id)
+                  const isEditing = editingItemId === summary.item.id
                   const hasUnreturned = summary.unreturned > 0
 
-                  return (
-                    <>
-                      {/* 자재 요약 행 */}
-                      <tr
-                        key={summary.item.id}
-                        className={`border-b border-slate-100 transition-colors ${hasUnreturned ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}
-                      >
-                        {/* 펼치기 토글 */}
-                        <td className="px-3 py-3 text-center">
-                          <button
-                            onClick={() => toggleItem(summary.item.id)}
-                            className="text-slate-400 hover:text-violet-600 transition-colors"
-                          >
-                            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-500">{summary.item.category}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-slate-800">{summary.item.name}</span>
-                            {hasUnreturned && <AlertCircle size={13} className="text-red-400 flex-shrink-0" />}
-                          </div>
+                  if (isEditing) {
+                    const inputCls = 'w-full text-center border border-slate-300 rounded px-1 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-violet-400'
+                    return (
+                      <tr key={summary.item.id} className="border-b border-slate-100 bg-violet-50/60">
+                        <td className="px-4 py-2 text-xs text-slate-500">{summary.item.category}</td>
+                        <td className="px-4 py-2">
+                          <p className="font-medium text-slate-800">{summary.item.name}</p>
                           <p className="text-xs text-slate-400">{summary.item.unit}</p>
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`font-semibold ${summary.totalOut > 0 ? 'text-red-600' : 'text-slate-300'}`}>
-                            {summary.totalOut.toLocaleString()}
-                          </span>
+                        <td className="px-2 py-2">
+                          <input type="number" min={0} value={editingQty.packing || ''} placeholder="0"
+                            onChange={(e) => setEditingQty({ ...editingQty, packing: Math.max(0, Number(e.target.value)) })}
+                            className={inputCls} />
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`font-semibold ${summary.totalReturn > 0 ? 'text-blue-600' : 'text-slate-300'}`}>
-                            {summary.totalReturn.toLocaleString()}
-                          </span>
+                        <td className="px-2 py-2">
+                          <input type="number" min={0} value={editingQty.out || ''} placeholder="0"
+                            onChange={(e) => setEditingQty({ ...editingQty, out: Math.max(0, Number(e.target.value)) })}
+                            className={inputCls} />
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`font-semibold ${summary.totalLoss > 0 ? 'text-orange-600' : 'text-slate-300'}`}>
-                            {summary.totalLoss.toLocaleString()}
-                          </span>
+                        <td className="px-2 py-2">
+                          <input type="number" min={0} value={editingQty.inp || ''} placeholder="0"
+                            onChange={(e) => setEditingQty({ ...editingQty, inp: Math.max(0, Number(e.target.value)) })}
+                            className={inputCls} />
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`font-bold text-base ${hasUnreturned ? 'text-red-600' : 'text-slate-400'}`}>
-                            {summary.unreturned.toLocaleString()}
-                          </span>
+                        <td className="px-2 py-2">
+                          <input type="number" min={0} value={editingQty.damaged || ''} placeholder="0"
+                            onChange={(e) => setEditingQty({ ...editingQty, damaged: Math.max(0, Number(e.target.value)) })}
+                            className={inputCls} />
                         </td>
-                        {/* 비고: 가장 최근 tx notes */}
-                        <td className="px-4 py-3 text-xs text-slate-500 max-w-[140px] truncate">
-                          {summary.transactions.find((t) => t.notes)?.notes || (
-                            <span className="text-slate-300">-</span>
-                          )}
+                        <td className="px-2 py-2">
+                          <input type="number" min={0} value={editingQty.lost || ''} placeholder="0"
+                            onChange={(e) => setEditingQty({ ...editingQty, lost: Math.max(0, Number(e.target.value)) })}
+                            className={inputCls} />
                         </td>
-                        <td className="px-3 py-3 text-center">
-                          <button
-                            onClick={() => setSelectedItem(summary.item)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors"
-                          >
-                            <Plus size={11} />추가
-                          </button>
+                        <td className="px-3 py-2">
+                          <input type="text" value={editingQty.notes} placeholder="메모"
+                            onChange={(e) => setEditingQty({ ...editingQty, notes: e.target.value })}
+                            className="w-full border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-violet-400" />
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center justify-center gap-1">
+                            <button onClick={() => handleInlineSave(summary.item.id)}
+                              className="px-2 py-1 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 rounded transition-colors">
+                              저장
+                            </button>
+                            <button onClick={() => setEditingItemId(null)}
+                              className="px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded transition-colors">
+                              취소
+                            </button>
+                          </div>
                         </td>
                       </tr>
+                    )
+                  }
 
-                      {/* 세부 내역 (펼침) */}
-                      {isExpanded && summary.transactions.map((tx) => (
-                        <tr key={tx.id} className="bg-slate-50/50 border-b border-slate-50 text-xs">
-                          <td className="px-3 py-2" />
-                          <td className="px-4 py-2 text-slate-400">
-                            {tx.transaction_date.replace(/-/g, '.')}
-                          </td>
-                          <td className="px-4 py-2">
-                            <span className={`px-2 py-0.5 rounded-full font-medium ${typeBadge[tx.transaction_type]}`}>
-                              {tx.transaction_type}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 text-center text-slate-600 font-medium" colSpan={1}>
-                            {tx.transaction_type === '출고' ? (
-                              <span className="text-red-600">{tx.quantity.toLocaleString()}</span>
-                            ) : '-'}
-                          </td>
-                          <td className="px-4 py-2 text-center text-slate-600 font-medium">
-                            {tx.transaction_type === '반입' ? (
-                              <span className="text-blue-600">{tx.quantity.toLocaleString()}</span>
-                            ) : '-'}
-                          </td>
-                          <td className="px-4 py-2 text-center text-slate-600 font-medium">
-                            {tx.transaction_type === '손실' ? (
-                              <span className="text-orange-600">{tx.quantity.toLocaleString()}</span>
-                            ) : '-'}
-                          </td>
-                          <td className="px-4 py-2 text-center text-slate-400">-</td>
-                          <td className="px-4 py-2 text-slate-500 max-w-[140px] truncate">
-                            {tx.notes || <span className="text-slate-300">-</span>}
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => setEditingTx(tx)}
-                                className="p-1 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded transition-colors">
-                                <Edit2 size={12} />
-                              </button>
-                              <button onClick={() => handleDeleteTx(tx.id)}
-                                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </>
+                  return (
+                    <tr
+                      key={summary.item.id}
+                      className={`border-b border-slate-100 transition-colors ${hasUnreturned ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}
+                    >
+                      <td className="px-4 py-3 text-xs text-slate-500">{summary.item.category}</td>
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-slate-800">{summary.item.name}</span>
+                        <p className="text-xs text-slate-400">{summary.item.unit}</p>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span className={`font-semibold text-sm ${summary.totalPacking > 0 ? 'text-slate-700' : 'text-slate-300'}`}>
+                          {summary.totalPacking > 0 ? summary.totalPacking.toLocaleString() : '-'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span className={`font-semibold text-sm ${summary.totalOut > 0 ? 'text-red-600' : 'text-slate-300'}`}>
+                          {summary.totalOut > 0 ? summary.totalOut.toLocaleString() : '-'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span className={`font-semibold text-sm ${summary.totalReturn > 0 ? 'text-blue-600' : 'text-slate-300'}`}>
+                          {summary.totalReturn > 0 ? summary.totalReturn.toLocaleString() : '-'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span className={`font-semibold text-sm ${summary.totalDamaged > 0 ? 'text-amber-600' : 'text-slate-300'}`}>
+                          {summary.totalDamaged > 0 ? summary.totalDamaged.toLocaleString() : '-'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span className={`font-semibold text-sm ${summary.totalLost > 0 ? 'text-rose-600' : 'text-slate-300'}`}>
+                          {(summary.totalLost + summary.totalLegacyLoss) > 0 ? (summary.totalLost + summary.totalLegacyLoss).toLocaleString() : '-'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-500 max-w-[140px] truncate">
+                        {summary.transactions.find((t) => t.notes)?.notes || (
+                          <span className="text-slate-300">-</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingItemId(summary.item.id)
+                              setEditingQty({
+                                packing: summary.totalPacking,
+                                out: summary.totalOut,
+                                inp: summary.totalReturn,
+                                damaged: summary.totalDamaged,
+                                lost: summary.totalLost + summary.totalLegacyLoss,
+                                notes: summary.transactions.find((t) => t.notes)?.notes || '',
+                              })
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors"
+                          >
+                            <Edit2 size={11} />수정
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItemTx(summary.item.id, summary.item.name)}
+                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   )
                 })
               )}
             </tbody>
-
-            {/* 합계 행 */}
-            {filteredSummaries.length > 0 && (
-              <tfoot>
-                <tr className="bg-slate-100 border-t-2 border-slate-200">
-                  <td colSpan={3} className="px-4 py-3 text-xs font-bold text-slate-600 text-right">합계</td>
-                  <td className="px-4 py-3 text-center font-bold text-red-600">
-                    {filteredSummaries.reduce((a, s) => a + s.totalOut, 0).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-center font-bold text-blue-600">
-                    {filteredSummaries.reduce((a, s) => a + s.totalReturn, 0).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-center font-bold text-orange-600">
-                    {filteredSummaries.reduce((a, s) => a + s.totalLoss, 0).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-center font-bold text-red-600">
-                    {filteredSummaries.reduce((a, s) => a + s.unreturned, 0).toLocaleString()}
-                  </td>
-                  <td colSpan={2} />
-                </tr>
-              </tfoot>
-            )}
           </table>
         </div>
       </div>
@@ -1281,15 +1333,6 @@ export default function ProjectDetail() {
         />
       )}
 
-      {/* 내역 수정 모달 */}
-      {editingTx && (
-        <EditTransactionDialog
-          tx={editingTx}
-          onSave={handleEditTx}
-          onClose={() => setEditingTx(null)}
-        />
-      )}
-
       {/* 자재 일괄 입출고 등록 */}
       {showBulkModal && id && (
         <BulkTransactionModal
@@ -1297,17 +1340,6 @@ export default function ProjectDetail() {
           projectId={id}
           onSuccess={fetchProjectData}
           onClose={() => setShowBulkModal(false)}
-        />
-      )}
-
-      {/* 자재 등록 모달 */}
-      {selectedItem && (
-        <TransactionModal
-          item={selectedItem}
-          onClose={() => setSelectedItem(null)}
-          onSuccess={fetchProjectData}
-          defaultProjectId={id}
-          mode="project"
         />
       )}
 

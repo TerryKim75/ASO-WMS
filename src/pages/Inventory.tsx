@@ -19,6 +19,9 @@ const typeBadge: Record<TransactionType, string> = {
   출고: 'bg-red-100 text-red-700',
   반입: 'bg-blue-100 text-blue-700',
   손실: 'bg-orange-100 text-orange-700',
+  팩킹: 'bg-slate-100 text-slate-600',
+  파손: 'bg-amber-100 text-amber-700',
+  분실: 'bg-rose-100 text-rose-700',
 }
 
 const typeLabel: Record<TransactionType, string> = {
@@ -26,6 +29,9 @@ const typeLabel: Record<TransactionType, string> = {
   출고: '출고/판매',
   반입: '반입',
   손실: '손실',
+  팩킹: '팩킹',
+  파손: '파손',
+  분실: '분실',
 }
 
 function formatDateLabel(dateStr: string): string {
@@ -90,6 +96,9 @@ export default function Inventory() {
         if (tx.transaction_type === '출고') stockMap[tx.item_id].out += tx.quantity
         if (tx.transaction_type === '반입') stockMap[tx.item_id].ret += tx.quantity
         if (tx.transaction_type === '손실') stockMap[tx.item_id].loss += tx.quantity
+        if (tx.transaction_type === '파손') stockMap[tx.item_id].loss += tx.quantity
+        if (tx.transaction_type === '분실') stockMap[tx.item_id].loss += tx.quantity
+        // 팩킹 does not affect stock
       })
 
       const withStock: ItemWithStock[] = allItems.map((item) => {

@@ -39,6 +39,10 @@ function getAvatarColor(name: string) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
+function isKoreanName(name: string) {
+  return /[가-힣]/.test(name)
+}
+
 const emptyForm = { name: '', name_en: '', position: '', role: '', email: '', phone: '', status: '재직' }
 
 export default function Employees() {
@@ -160,13 +164,19 @@ export default function Employees() {
               {/* 카드 상단 */}
               <div className="px-5 pt-5 pb-4 flex items-start gap-4">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 ${getAvatarColor(emp.name)}`}>
-                  {emp.name.charAt(0)}
+                  {(isKoreanName(emp.name) ? emp.name : (emp.name_en || emp.name)).charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-1">
                     <div className="min-w-0">
-                      <p className="font-bold text-slate-800 text-base leading-tight">{emp.name}</p>
-                      {emp.name_en && <p className="text-xs text-slate-400 mt-0.5">{emp.name_en}</p>}
+                      {isKoreanName(emp.name) ? (
+                        <>
+                          <p className="font-bold text-slate-800 text-base leading-tight">{emp.name}</p>
+                          {emp.name_en && <p className="text-xs text-slate-400 mt-0.5">{emp.name_en}</p>}
+                        </>
+                      ) : (
+                        <p className="font-bold text-slate-800 text-base leading-tight">{emp.name_en || emp.name}</p>
+                      )}
                     </div>
                     {emp.status === '퇴사' && (
                       <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded shrink-0">퇴사</span>
