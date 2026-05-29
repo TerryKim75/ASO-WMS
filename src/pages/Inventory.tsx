@@ -5,7 +5,6 @@ import { supabase } from '../lib/supabase'
 import { useCategories } from '../contexts/CategoriesContext'
 import type { ItemWithStock, InventoryTransaction, TransactionType } from '../types'
 import AddItemModal from '../components/AddItemModal'
-import TransactionModal from '../components/TransactionModal'
 import CategoryManageModal from '../components/CategoryManageModal'
 
 function stockColor(stock: number) {
@@ -55,6 +54,126 @@ interface HistoryTx extends InventoryTransaction {
   projectName?: string
 }
 
+function StockEditModal({ item, onClose, onSuccess }: {
+  item: ItemWithStock
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [form, setForm] = useState({
+    total_in: item.total_in,
+    total_out: item.total_out,
+    total_loss: item.total_loss,
+  })
+  const [saving, setSaving] = useState(false)
+  const today = new Date().toISOString().split('T')[0]
+
+  const deltaIn = form.total_in - item.total_in
+  const deltaOut = form.total_out - item.total_out
+  const deltaLoss = form.total_loss - item.total_loss
+  const hasChanges = deltaIn !== 0 || deltaOut !== 0 || deltaLoss !== 0
+  const newStock = form.total_in - form.total_out + item.total_return - form.total_loss
+
+  const handleSave = async () => {
+    if (!hasChanges) { onClose(); return }
+    const ok = window.confirm('수량을 수정하겠습니까?')
+    if (!ok) return
+    setSaving(true)
+    try {
+      const rows: { item_id: string; transaction_type: string; quantity: number; transaction_date: string; notes: string }[] = []
+      if (deltaIn !== 0) rows.push({ item_id: item.id, transaction_type: '입고', quantity: deltaIn, transaction_date: today, notes: '수동 조정' })
+      if (deltaOut !== 0) rows.push({ item_id: item.id, transaction_type: '출고', quantity: deltaOut, transaction_date: today, notes: '수동 조정' })
+      if (deltaLoss !== 0) rows.push({ item_id: item.id, transaction_type: '손실', quantity: deltaLoss, transaction_date: today, notes: '수동 조정' })
+      const { error } = await supabase.from('inventory_transactions').insert(rows)
+      if (error) throw error
+      onSuccess()
+      onClose()
+    } catch (err) {
+      alert('저장 실패: ' + (err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const ic = 'w-full text-right border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500'
+  const stockColor = newStock <= 0 ? 'text-red-600' : newStock <= 10 ? 'text-yellow-600' : 'text-green-700'
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <div>
+            <h3 className="font-bold text-slate-800">재고 수량 수정</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{item.name}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* 총재고 미리보기 */}
+          <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-200">
+            <p className="text-xs text-slate-500 mb-1">수정 후 총재고</p>
+            <p className={`text-3xl font-bold ${stockColor}`}>{newStock.toLocaleString()}</p>
+            <p className="text-xs text-slate-400 mt-1">{item.unit}</p>
+          </div>
+
+          {/* 수정 필드 */}
+          <div className="space-y-3">
+            {[
+              { label: '입고', key: 'total_in' as const, color: 'text-green-700', current: item.total_in },
+              { label: '출고', key: 'total_out' as const, color: 'text-red-600', current: item.total_out },
+              { label: '손실', key: 'total_loss' as const, color: 'text-orange-600', current: item.total_loss },
+            ].map(({ label, key, color, current }) => (
+              <div key={key} className="flex items-center gap-4">
+                <div className="w-24 flex-shrink-0">
+                  <p className={`text-sm font-semibold ${color}`}>{label}</p>
+                  <p className="text-xs text-slate-400">현재 {current.toLocaleString()}</p>
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  value={form[key]}
+                  onChange={(e) => setForm({ ...form, [key]: Math.max(0, Number(e.target.value)) })}
+                  className={ic}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* 변경 사항 요약 */}
+          {hasChanges && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs space-y-1">
+              <p className="font-semibold text-amber-800 mb-1.5">변경 사항</p>
+              {deltaIn !== 0 && (
+                <p className="text-amber-700">입고: {item.total_in.toLocaleString()} → {form.total_in.toLocaleString()}
+                  <span className={`ml-1.5 font-bold ${deltaIn > 0 ? 'text-green-600' : 'text-red-600'}`}>({deltaIn > 0 ? '+' : ''}{deltaIn})</span>
+                </p>
+              )}
+              {deltaOut !== 0 && (
+                <p className="text-amber-700">출고: {item.total_out.toLocaleString()} → {form.total_out.toLocaleString()}
+                  <span className={`ml-1.5 font-bold ${deltaOut > 0 ? 'text-red-600' : 'text-green-600'}`}>({deltaOut > 0 ? '+' : ''}{deltaOut})</span>
+                </p>
+              )}
+              {deltaLoss !== 0 && (
+                <p className="text-amber-700">손실: {item.total_loss.toLocaleString()} → {form.total_loss.toLocaleString()}
+                  <span className={`ml-1.5 font-bold ${deltaLoss > 0 ? 'text-red-600' : 'text-green-600'}`}>({deltaLoss > 0 ? '+' : ''}{deltaLoss})</span>
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 px-5 py-4 border-t bg-slate-50">
+          <button onClick={onClose} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">취소</button>
+          <button onClick={handleSave} disabled={saving || !hasChanges}
+            className="flex-1 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-50">
+            {saving ? '저장 중...' : '수정 완료'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Inventory() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { categories, getCategoryStyle } = useCategories()
@@ -66,7 +185,7 @@ export default function Inventory() {
   const [selectedCategory, setSelectedCategory] = useState<string>(() => searchParams.get('category') || '전체')
   const [showAddItem, setShowAddItem] = useState(false)
   const [showCategoryManage, setShowCategoryManage] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<ItemWithStock | null>(null)
+  const [editingStockItem, setEditingStockItem] = useState<ItemWithStock | null>(null)
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null)
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
   const [historyLoaded, setHistoryLoaded] = useState(false)
@@ -324,7 +443,7 @@ export default function Inventory() {
                       <td className="px-4 py-3.5 text-center text-orange-600">{item.total_loss.toLocaleString()}</td>
                       <td className="px-4 py-3.5 text-center">
                         <button
-                          onClick={() => setSelectedItem(item)}
+                          onClick={() => setEditingStockItem(item)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors"
                         >
                           <RefreshCw size={11} />변경
@@ -467,11 +586,10 @@ export default function Inventory() {
 
       {showAddItem && <AddItemModal onClose={() => setShowAddItem(false)} onSuccess={fetchItems} />}
       {showCategoryManage && <CategoryManageModal onClose={() => setShowCategoryManage(false)} />}
-      {selectedItem && (
-        <TransactionModal
-          item={selectedItem}
-          mode="stock"
-          onClose={() => setSelectedItem(null)}
+      {editingStockItem && (
+        <StockEditModal
+          item={editingStockItem}
+          onClose={() => setEditingStockItem(null)}
           onSuccess={fetchItems}
         />
       )}
