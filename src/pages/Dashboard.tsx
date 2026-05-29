@@ -80,10 +80,10 @@ export default function Dashboard() {
   useEffect(() => { fetchData() }, [fetchData])
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">대시보드</h1>
-        <p className="text-slate-500 text-sm mt-1">ASO System 프로젝트 관리 현황</p>
+        <h1 className="text-xl md:text-2xl font-bold text-slate-800">대시보드</h1>
+        <p className="text-slate-500 text-sm mt-0.5">ASO System 프로젝트 관리 현황</p>
       </div>
 
       {/* ─── 진행중인 프로젝트 ─── */}

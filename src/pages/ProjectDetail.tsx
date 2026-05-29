@@ -739,9 +739,9 @@ export default function ProjectDetail() {
     setTimeout(() => win.print(), 300)
   }
 
-  if (loading) return <div className="p-6 text-center text-slate-400 py-20">불러오는 중...</div>
+  if (loading) return <div className="p-4 md:p-6 text-center text-slate-400 py-20">불러오는 중...</div>
   if (!project) return (
-    <div className="p-6 text-center text-slate-400 py-20">
+    <div className="p-4 md:p-6 text-center text-slate-400 py-20">
       프로젝트를 찾을 수 없습니다.
       <button onClick={() => navigate('/projects')} className="block mx-auto mt-4 text-violet-600">목록으로</button>
     </div>
@@ -756,50 +756,50 @@ export default function ProjectDetail() {
   const endDt = formatDatetime(project.end_date, project.end_time)
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       <button onClick={() => navigate('/projects')}
         className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">
         <ArrowLeft size={16} />프로젝트 목록
       </button>
 
       {/* 프로젝트 헤더 */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div className="flex items-start justify-between gap-4">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-slate-800">{project.name}</h1>
-            <div className="mt-4 grid grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 text-sm">
-              {project.exhibition && <div><span className="text-slate-400 text-xs">전시회</span><p className="text-slate-700 font-medium">{project.exhibition}</p></div>}
-              {project.organizer && <div><span className="text-slate-400 text-xs">기획사</span><p className="text-slate-700 font-medium">{project.organizer}</p></div>}
-              {project.exhibitor && <div><span className="text-slate-400 text-xs">참가사</span><p className="text-slate-700 font-medium">{project.exhibitor}</p></div>}
-              {project.manager && <div><span className="text-slate-400 text-xs">담당</span><p className="text-slate-700 font-medium">{project.manager}</p></div>}
+            <h1 className="text-xl md:text-2xl font-bold text-slate-800">{project.name}</h1>
+            <div className="mt-3 md:mt-4 grid grid-cols-2 lg:grid-cols-3 gap-x-6 md:gap-x-8 gap-y-2 text-sm">
+              {project.exhibition && <div><span className="text-slate-400 text-xs">전시회</span><p className="text-slate-700 font-medium text-sm">{project.exhibition}</p></div>}
+              {project.organizer && <div><span className="text-slate-400 text-xs">기획사</span><p className="text-slate-700 font-medium text-sm">{project.organizer}</p></div>}
+              {project.exhibitor && <div><span className="text-slate-400 text-xs">참가사</span><p className="text-slate-700 font-medium text-sm">{project.exhibitor}</p></div>}
+              {project.manager && <div><span className="text-slate-400 text-xs">담당</span><p className="text-slate-700 font-medium text-sm">{project.manager}</p></div>}
               {(startDt || endDt) && (
                 <div className="col-span-2">
                   <span className="text-slate-400 text-xs">전시일정</span>
-                  <p className="text-slate-700 font-medium">{startDt}{startDt && endDt && ' ~ '}{endDt}</p>
+                  <p className="text-slate-700 font-medium text-sm">{startDt}{startDt && endDt && ' ~ '}{endDt}</p>
                 </div>
               )}
               {project.shipping_date && (
                 <div>
                   <span className="text-slate-400 text-xs">출고예정일</span>
-                  <p className="text-slate-700 font-medium">{project.shipping_date.replace(/-/g, '.')}</p>
+                  <p className="text-slate-700 font-medium text-sm">{project.shipping_date.replace(/-/g, '.')}</p>
                 </div>
               )}
               {project.return_date && (
                 <div>
                   <span className="text-slate-400 text-xs">입고예정일</span>
-                  <p className="text-slate-700 font-medium">{project.return_date.replace(/-/g, '.')}</p>
+                  <p className="text-slate-700 font-medium text-sm">{project.return_date.replace(/-/g, '.')}</p>
                 </div>
               )}
               {project.construction_date && (
                 <div>
                   <span className="text-slate-400 text-xs">시공일</span>
-                  <p className="text-slate-700 font-medium">{project.construction_date.replace(/-/g, '.')}</p>
+                  <p className="text-slate-700 font-medium text-sm">{project.construction_date.replace(/-/g, '.')}</p>
                 </div>
               )}
               {project.demolition_date && (
                 <div>
                   <span className="text-slate-400 text-xs">철거일</span>
-                  <p className="text-slate-700 font-medium">{project.demolition_date.replace(/-/g, '.')}</p>
+                  <p className="text-slate-700 font-medium text-sm">{project.demolition_date.replace(/-/g, '.')}</p>
                 </div>
               )}
             </div>
@@ -807,33 +807,37 @@ export default function ProjectDetail() {
           </div>
 
           {/* 진행현황 + 수정 버튼 */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 flex-shrink-0">
             {editingStatus ? (
               <>
                 <select value={newStatus} onChange={(e) => setNewStatus(e.target.value as ProjectStatus)}
-                  className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+                  className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
-                <button onClick={handleStatusUpdate} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg"><Check size={16} /></button>
-                <button onClick={() => { setEditingStatus(false); setNewStatus(project.status) }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg"><X size={16} /></button>
+                <div className="flex gap-1">
+                  <button onClick={handleStatusUpdate} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg"><Check size={16} /></button>
+                  <button onClick={() => { setEditingStatus(false); setNewStatus(project.status) }} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg"><X size={16} /></button>
+                </div>
               </>
             ) : (
               <>
-                <span className={`px-3 py-1 text-sm font-medium rounded-full border ${STATUS_COLORS[project.status] || 'bg-slate-100 text-slate-600'}`}>
+                <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${STATUS_COLORS[project.status] || 'bg-slate-100 text-slate-600'}`}>
                   {project.status}
                 </span>
-                <button onClick={() => setEditingStatus(true)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg" title="상태 변경"><Edit2 size={14} /></button>
-                <button onClick={() => setShowEditProject(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-violet-100 hover:text-violet-700 rounded-lg transition-colors">
-                  <Edit2 size={12} />프로젝트 수정
-                </button>
+                <div className="flex gap-1">
+                  <button onClick={() => setEditingStatus(true)} className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg" title="상태 변경"><Edit2 size={14} /></button>
+                  <button onClick={() => setShowEditProject(true)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-violet-100 hover:text-violet-700 rounded-lg transition-colors">
+                    <Edit2 size={12} /><span className="hidden sm:inline">프로젝트 </span>수정
+                  </button>
+                </div>
               </>
             )}
           </div>
         </div>
 
         {/* 첨부파일 */}
-        <div className="mt-5 pt-5 border-t border-slate-100">
+        <div className="mt-4 md:mt-5 pt-4 md:pt-5 border-t border-slate-100">
           <div className="flex items-center gap-2 mb-3">
             <Paperclip size={14} className="text-slate-400" />
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">첨부파일</span>
@@ -907,35 +911,35 @@ export default function ProjectDetail() {
         )}
 
         {/* 요약 수치 */}
-        <div className="grid grid-cols-5 gap-4 mt-6 pt-6 border-t border-slate-100">
+        <div className="grid grid-cols-5 gap-2 md:gap-4 mt-4 md:mt-6 pt-4 md:pt-6 border-t border-slate-100">
           <div className="text-center">
-            <p className="text-2xl font-bold text-slate-600">{totalPacking.toLocaleString()}</p>
-            <p className="text-xs text-slate-500 mt-1">팩킹</p>
+            <p className="text-xl md:text-2xl font-bold text-slate-600">{totalPacking.toLocaleString()}</p>
+            <p className="text-xs text-slate-500 mt-0.5 md:mt-1">팩킹</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-red-600">{totalOut.toLocaleString()}</p>
-            <p className="text-xs text-slate-500 mt-1">총 출고</p>
+            <p className="text-xl md:text-2xl font-bold text-red-600">{totalOut.toLocaleString()}</p>
+            <p className="text-xs text-slate-500 mt-0.5 md:mt-1">출고</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-blue-600">{totalReturn.toLocaleString()}</p>
-            <p className="text-xs text-slate-500 mt-1">총 반입</p>
+            <p className="text-xl md:text-2xl font-bold text-blue-600">{totalReturn.toLocaleString()}</p>
+            <p className="text-xs text-slate-500 mt-0.5 md:mt-1">반입</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-orange-600">{totalDamagedLost.toLocaleString()}</p>
-            <p className="text-xs text-slate-500 mt-1">파손/분실</p>
+            <p className="text-xl md:text-2xl font-bold text-orange-600">{totalDamagedLost.toLocaleString()}</p>
+            <p className="text-xs text-slate-500 mt-0.5 md:mt-1">파손/분실</p>
           </div>
           <div className="text-center">
-            <p className={`text-2xl font-bold ${totalUnreturned > 0 ? 'text-red-600' : 'text-slate-400'}`}>
+            <p className={`text-xl md:text-2xl font-bold ${totalUnreturned > 0 ? 'text-red-600' : 'text-slate-400'}`}>
               {totalUnreturned.toLocaleString()}
             </p>
-            <p className="text-xs text-slate-500 mt-1">미반입</p>
+            <p className="text-xs text-slate-500 mt-0.5 md:mt-1">미반입</p>
           </div>
         </div>
       </div>
 
       {/* ─── 입출고 내역 ─── */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+        <div className="px-4 md:px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-slate-800">입출고 내역</h2>
             {itemSummaries.length > 0 && (
@@ -944,13 +948,13 @@ export default function ProjectDetail() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {itemSummaries.some((s) => s.totalPacking > 0) && (
               <button
                 onClick={handlePrintPacking}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               >
-                <Printer size={13} />팩킹 리스트 출력
+                <Printer size={13} /><span className="hidden sm:inline">팩킹 리스트 출력</span><span className="sm:hidden">출력</span>
               </button>
             )}
             <div className="relative">
@@ -960,20 +964,74 @@ export default function ProjectDetail() {
                 value={txSearch}
                 onChange={(e) => setTxSearch(e.target.value)}
                 placeholder="자재명·카테고리"
-                className="pl-7 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs w-40 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                className="pl-7 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs w-32 md:w-40 focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
             </div>
             <button
               onClick={() => setShowBulkModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors"
             >
-              <Plus size={13} />입출고 내역 작성 및 수정
+              <Plus size={13} /><span className="hidden sm:inline">입출고 내역 작성 및 수정</span><span className="sm:hidden">작성·수정</span>
             </button>
           </div>
         </div>
 
-        {/* 테이블 */}
-        <div className="overflow-x-auto">
+        {/* 모바일 카드 */}
+        <div className="sm:hidden">
+          {filteredSummaries.length === 0 ? (
+            <div className="px-5 py-10 text-center text-slate-400 text-sm">
+              {txSearch ? '검색 결과가 없습니다.' : '등록된 내역이 없습니다.'}
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {filteredSummaries.map((summary) => (
+                <div key={summary.item.id} className="p-4">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-800 text-sm">{summary.item.name}</p>
+                      <p className="text-xs text-slate-400">{summary.item.category} · {summary.item.unit}</p>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => {
+                          setEditingItemId(summary.item.id)
+                          setEditingQty({
+                            packing: summary.totalPacking, out: summary.totalOut, inp: summary.totalReturn,
+                            damaged: summary.totalDamaged, lost: summary.totalLost + summary.totalLegacyLoss,
+                            notes: summary.transactions.find((t) => t.notes)?.notes || '',
+                          })
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors"
+                      >
+                        <Edit2 size={11} />수정
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5 text-center">
+                    {[
+                      { label: '팩킹', value: summary.totalPacking, color: 'text-slate-700' },
+                      { label: '출고', value: summary.totalOut, color: 'text-red-600' },
+                      { label: '반입', value: summary.totalReturn, color: 'text-blue-600' },
+                      { label: '파손/분실', value: summary.totalDamaged + summary.totalLost + summary.totalLegacyLoss, color: 'text-amber-600' },
+                      { label: '미반입', value: summary.unreturned, color: summary.unreturned > 0 ? 'text-orange-600' : 'text-slate-300' },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="bg-slate-50 rounded-lg py-1.5">
+                        <p className={`text-sm font-bold ${color}`}>{value > 0 ? value : '-'}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {summary.transactions.find((t) => t.notes)?.notes && (
+                    <p className="text-xs text-slate-400 mt-2">{summary.transactions.find((t) => t.notes)?.notes}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 데스크탑 테이블 */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">

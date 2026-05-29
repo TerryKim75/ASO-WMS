@@ -154,21 +154,19 @@ export default function Transactions() {
   }, [groups])
 
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">입출고 내역</h1>
-          <p className="text-slate-500 text-sm mt-1">프로젝트별 자재 입출고 현황</p>
-        </div>
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
+      <div>
+        <h1 className="text-xl md:text-2xl font-bold text-slate-800">입출고 내역</h1>
+        <p className="text-slate-500 text-sm mt-0.5">프로젝트별 자재 입출고 현황</p>
       </div>
 
       {/* 진행현황 필터 카드 */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
         {(['준비중', '출고', '입고완료'] as DeliveryStatus[]).map((s) => (
           <button
             key={s}
             onClick={() => setDeliveryFilter(deliveryFilter === s ? '' : s)}
-            className={`rounded-xl border-2 p-4 text-center transition-all ${
+            className={`rounded-xl border-2 p-3 md:p-4 text-center transition-all ${
               deliveryFilter === s
                 ? s === '준비중' ? 'bg-slate-100 border-slate-400'
                   : s === '출고' ? 'bg-orange-50 border-orange-400'
@@ -176,19 +174,19 @@ export default function Transactions() {
                 : 'bg-white border-slate-200 hover:border-slate-300'
             }`}
           >
-            <p className={`text-2xl font-bold ${
+            <p className={`text-xl md:text-2xl font-bold ${
               s === '준비중' ? 'text-slate-600' : s === '출고' ? 'text-orange-600' : 'text-green-600'
             }`}>
               {statusCounts[s]}
             </p>
-            <p className="text-xs font-medium text-slate-500 mt-1">{s}</p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5 md:mt-1">{s}</p>
           </button>
         ))}
       </div>
 
       {/* 검색 + 타입 필터 */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-3">
+        <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -198,19 +196,19 @@ export default function Transactions() {
             className="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {(['', '입고', '출고', '반입', '손실'] as const).map((t) => (
             <button
               key={t || 'all'}
               onClick={() => setTypeFilter(t)}
-              className={`px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
                 typeFilter === t
                   ? t === '' ? 'bg-slate-700 text-white border-slate-700'
                     : t === '입고' ? 'bg-green-600 text-white border-green-600'
                     : t === '출고' ? 'bg-red-600 text-white border-red-600'
                     : t === '반입' ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-orange-500 text-white border-orange-500'
-                  : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                  : 'bg-white text-slate-600 border-slate-300'
               }`}
             >
               {t || '전체'}
@@ -255,20 +253,19 @@ export default function Transactions() {
                 {/* 프로젝트 헤더 행 */}
                 <button
                   onClick={() => toggleExpand(group.projectId)}
-                  className="w-full flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 md:gap-4 px-4 md:px-5 py-3.5 md:py-4 hover:bg-slate-50 transition-colors text-left"
                 >
                   <span className="text-slate-400 flex-shrink-0">
                     {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   </span>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <span className="font-semibold text-slate-800">{group.project.name}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-slate-800 text-sm md:text-base">{group.project.name}</span>
                       {group.project.exhibitor && (
-                        <span className="text-xs text-slate-400">· {group.project.exhibitor}</span>
+                        <span className="text-xs text-slate-400 hidden sm:inline">· {group.project.exhibitor}</span>
                       )}
                     </div>
-                    {/* 날짜 */}
                     {(group.project.start_date || group.project.end_date) && (
                       <p className="text-xs text-slate-400 mt-0.5">
                         {group.project.start_date && formatDate(group.project.start_date)}
@@ -279,40 +276,29 @@ export default function Transactions() {
                   </div>
 
                   {/* 배지 & 수치 */}
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    {/* 프로젝트 진행현황 */}
+                  <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
                     {group.project.status && (
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full border hidden sm:inline-flex ${STATUS_COLORS[group.project.status] || 'bg-slate-100 text-slate-500'}`}>
                         {group.project.status}
                       </span>
                     )}
-                    {/* 입출고 진행현황 */}
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${DELIVERY_STATUS[deliveryStatus]}`}>
+                    <span className={`text-xs font-semibold px-2 py-0.5 md:px-2.5 md:py-1 rounded-full ${DELIVERY_STATUS[deliveryStatus]}`}>
                       {deliveryStatus}
                     </span>
-
-                    {/* 출고/반입/미반입 수치 */}
                     <div className="hidden lg:flex items-center gap-4 text-sm border-l border-slate-100 pl-4 ml-1">
                       <div className="text-center">
                         <p className="text-xs text-slate-400">출고</p>
-                        <p className={`font-semibold ${group.totalOut > 0 ? 'text-red-600' : 'text-slate-300'}`}>
-                          {group.totalOut.toLocaleString()}
-                        </p>
+                        <p className={`font-semibold ${group.totalOut > 0 ? 'text-red-600' : 'text-slate-300'}`}>{group.totalOut.toLocaleString()}</p>
                       </div>
                       <div className="text-center">
                         <p className="text-xs text-slate-400">반입</p>
-                        <p className={`font-semibold ${group.totalReturn > 0 ? 'text-blue-600' : 'text-slate-300'}`}>
-                          {group.totalReturn.toLocaleString()}
-                        </p>
+                        <p className={`font-semibold ${group.totalReturn > 0 ? 'text-blue-600' : 'text-slate-300'}`}>{group.totalReturn.toLocaleString()}</p>
                       </div>
                       <div className="text-center">
                         <p className="text-xs text-slate-400">미반입</p>
-                        <p className={`font-semibold ${unreturned > 0 ? 'text-orange-600' : 'text-slate-300'}`}>
-                          {unreturned.toLocaleString()}
-                        </p>
+                        <p className={`font-semibold ${unreturned > 0 ? 'text-orange-600' : 'text-slate-300'}`}>{unreturned.toLocaleString()}</p>
                       </div>
                     </div>
-
                     <span className="text-xs text-slate-400 whitespace-nowrap">
                       {group.transactions.length > 0 ? `${group.transactions.length}건` : '내역없음'}
                     </span>
@@ -323,8 +309,8 @@ export default function Transactions() {
                 {isExpanded && (
                   <div className="border-t border-slate-100">
                     {/* 서브 헤더 */}
-                    <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-4 text-xs text-slate-500">
+                    <div className="px-4 md:px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 md:gap-4 text-xs text-slate-500 flex-wrap">
                         {group.totalOut > 0 && (
                           <span>출고 <strong className="text-red-600">{group.totalOut.toLocaleString()}</strong></span>
                         )}
@@ -340,9 +326,9 @@ export default function Transactions() {
                       </div>
                       <button
                         onClick={() => navigate(`/projects/${group.projectId}`)}
-                        className="text-xs text-violet-600 hover:text-violet-700 font-medium"
+                        className="text-xs text-violet-600 hover:text-violet-700 font-medium flex-shrink-0"
                       >
-                        프로젝트 상세 →
+                        상세 →
                       </button>
                     </div>
 
@@ -358,55 +344,80 @@ export default function Transactions() {
                         </button>
                       </div>
                     ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-slate-100">
-                              <th className="text-left px-5 py-2.5 font-semibold text-slate-500 text-xs">날짜</th>
-                              <th className="text-left px-4 py-2.5 font-semibold text-slate-500 text-xs">자재명</th>
-                              <th className="text-left px-4 py-2.5 font-semibold text-slate-500 text-xs">카테고리</th>
-                              <th className="text-center px-4 py-2.5 font-semibold text-slate-500 text-xs">구분</th>
-                              <th className="text-center px-4 py-2.5 font-semibold text-slate-500 text-xs">수량</th>
-                              <th className="text-left px-4 py-2.5 font-semibold text-slate-500 text-xs">비고</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-50">
-                            {group.transactions.map((tx) => {
-                              const item = tx.items as Item | undefined
-                              const catStyle = item?.category ? getCategoryStyle(item.category) : null
-                              return (
-                                <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
-                                  <td className="px-5 py-2.5 text-slate-500 whitespace-nowrap text-xs">
-                                    {formatDate(tx.transaction_date)}
-                                  </td>
-                                  <td className="px-4 py-2.5 font-medium text-slate-800">
-                                    {item?.name || '-'}
-                                  </td>
-                                  <td className="px-4 py-2.5">
-                                    {item?.category && catStyle && (
-                                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${catStyle.badge}`}>
-                                        {item.category}
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-2.5 text-center">
-                                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${typeBadge[tx.transaction_type]}`}>
+                      <>
+                        {/* 모바일 카드 */}
+                        <div className="sm:hidden divide-y divide-slate-50">
+                          {group.transactions.map((tx) => {
+                            const item = tx.items as Item | undefined
+                            return (
+                              <div key={tx.id} className="px-4 py-3 flex items-center gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-medium rounded-full ${typeBadge[tx.transaction_type]}`}>
                                       {tx.transaction_type}
                                     </span>
-                                  </td>
-                                  <td className="px-4 py-2.5 text-center font-semibold text-slate-800">
-                                    {tx.quantity.toLocaleString()}
-                                    <span className="text-xs text-slate-400 font-normal ml-1">{item?.unit}</span>
-                                  </td>
-                                  <td className="px-4 py-2.5 text-slate-500 text-xs">
-                                    {tx.notes || <span className="text-slate-300">-</span>}
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                                    <span className="font-medium text-slate-800 text-sm truncate">{item?.name || '-'}</span>
+                                  </div>
+                                  {tx.notes && <p className="text-xs text-slate-400 mt-0.5 truncate">{tx.notes}</p>}
+                                </div>
+                                <div className="flex-shrink-0 text-right">
+                                  <p className="font-semibold text-slate-800 text-sm">{tx.quantity.toLocaleString()}<span className="text-xs text-slate-400 font-normal ml-0.5">{item?.unit}</span></p>
+                                  <p className="text-xs text-slate-400">{formatDate(tx.transaction_date)}</p>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+
+                        {/* 데스크탑 테이블 */}
+                        <div className="hidden sm:block overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-slate-100">
+                                <th className="text-left px-5 py-2.5 font-semibold text-slate-500 text-xs">날짜</th>
+                                <th className="text-left px-4 py-2.5 font-semibold text-slate-500 text-xs">자재명</th>
+                                <th className="text-left px-4 py-2.5 font-semibold text-slate-500 text-xs">카테고리</th>
+                                <th className="text-center px-4 py-2.5 font-semibold text-slate-500 text-xs">구분</th>
+                                <th className="text-center px-4 py-2.5 font-semibold text-slate-500 text-xs">수량</th>
+                                <th className="text-left px-4 py-2.5 font-semibold text-slate-500 text-xs">비고</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                              {group.transactions.map((tx) => {
+                                const item = tx.items as Item | undefined
+                                const catStyle = item?.category ? getCategoryStyle(item.category) : null
+                                return (
+                                  <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="px-5 py-2.5 text-slate-500 whitespace-nowrap text-xs">
+                                      {formatDate(tx.transaction_date)}
+                                    </td>
+                                    <td className="px-4 py-2.5 font-medium text-slate-800">{item?.name || '-'}</td>
+                                    <td className="px-4 py-2.5">
+                                      {item?.category && catStyle && (
+                                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${catStyle.badge}`}>
+                                          {item.category}
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-2.5 text-center">
+                                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${typeBadge[tx.transaction_type]}`}>
+                                        {tx.transaction_type}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-2.5 text-center font-semibold text-slate-800">
+                                      {tx.quantity.toLocaleString()}
+                                      <span className="text-xs text-slate-400 font-normal ml-1">{item?.unit}</span>
+                                    </td>
+                                    <td className="px-4 py-2.5 text-slate-500 text-xs">
+                                      {tx.notes || <span className="text-slate-300">-</span>}
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}

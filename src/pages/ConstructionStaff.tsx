@@ -193,44 +193,100 @@ export default function ConstructionStaff() {
   })
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">시공인력</h1>
-          <p className="text-slate-500 text-sm mt-1">시공인원 정보 관리</p>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">시공인력</h1>
+          <p className="text-slate-500 text-sm mt-0.5">시공인원 정보 관리</p>
         </div>
         <button onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors shadow-sm">
-          <Plus size={16} />
-          인력 추가
+          className="flex items-center gap-2 px-3 py-2 md:px-4 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors shadow-sm">
+          <Plus size={16} /><span className="hidden sm:inline">인력 추가</span><span className="sm:hidden">추가</span>
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-48">
+      <div className="flex flex-col gap-3">
+        <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="이름 또는 특기사항 검색..."
             className="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white" />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={() => setLevelFilter('')}
-            className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${!levelFilter ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}>
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${!levelFilter ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-600 border-slate-300'}`}>
             전체
           </button>
           {LEVELS.map((l) => (
             <button key={l} onClick={() => setLevelFilter(levelFilter === l ? '' : l)}
-              className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${levelFilter === l ? LEVEL_COLORS[l] : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}>
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${levelFilter === l ? LEVEL_COLORS[l] : 'bg-white text-slate-600 border-slate-300'}`}>
               {l}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* 모바일 카드 */}
+      <div className="md:hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        {loading ? (
+          <div className="py-12 text-center text-slate-400 text-sm">불러오는 중...</div>
+        ) : filtered.length === 0 ? (
+          <div className="py-12 text-center text-slate-400 text-sm">
+            {search || levelFilter ? '검색 결과가 없습니다.' : '등록된 인력이 없습니다.'}
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {filtered.map((w) => (
+              <div key={w.id} className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-slate-800">{w.name}</span>
+                      {w.level && (
+                        <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full border ${LEVEL_COLORS[w.level] || 'bg-slate-100 text-slate-600'}`}>
+                          <Star size={9} />{w.level}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                      {w.phone && (
+                        <a href={`tel:${w.phone}`} className="flex items-center gap-1 text-sm text-slate-600 hover:text-violet-600">
+                          <Phone size={12} className="text-slate-400" />{w.phone}
+                        </a>
+                      )}
+                      {w.email && (
+                        <a href={`mailto:${w.email}`} className="flex items-center gap-1 text-xs text-slate-500 hover:text-violet-600 truncate max-w-[200px]">
+                          <Mail size={11} className="text-slate-400 flex-shrink-0" />{w.email}
+                        </a>
+                      )}
+                    </div>
+                    {w.specialty && <p className="text-xs text-slate-500 mt-1">{w.specialty}</p>}
+                    {w.notes && <p className="text-xs text-slate-400 mt-0.5">{w.notes}</p>}
+                  </div>
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                    <button onClick={() => openEdit(w)}
+                      className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
+                      <Edit2 size={15} />
+                    </button>
+                    <button onClick={() => handleDelete(w)}
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {!loading && filtered.length > 0 && (
+          <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-400">총 {filtered.length}명</div>
+        )}
+      </div>
+
+      {/* 데스크탑 테이블 */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -261,8 +317,7 @@ export default function ConstructionStaff() {
                     <td className="px-4 py-3.5 text-center">
                       {w.level ? (
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full border ${LEVEL_COLORS[w.level] || 'bg-slate-100 text-slate-600'}`}>
-                          <Star size={10} />
-                          {w.level}
+                          <Star size={10} />{w.level}
                         </span>
                       ) : <span className="text-slate-300">-</span>}
                     </td>

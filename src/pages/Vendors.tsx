@@ -173,21 +173,21 @@ export default function Vendors() {
   })
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">발주처</h1>
-          <p className="text-slate-500 text-sm mt-1">거래처 목록 및 발주서 관리</p>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">발주처</h1>
+          <p className="text-slate-500 text-sm mt-0.5">거래처 목록 및 발주서 관리</p>
         </div>
         <button onClick={() => { setEditingVendor(null); setShowForm(true) }}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors shadow-sm">
-          <Plus size={16} />거래처 추가
+          className="flex items-center gap-2 px-3 py-2 md:px-4 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors shadow-sm">
+          <Plus size={16} /><span className="hidden sm:inline">거래처 추가</span><span className="sm:hidden">추가</span>
         </button>
       </div>
 
       {/* 검색 + 분류 필터 */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-3">
+        <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="거래처명, 담당자, 분류 검색..."
@@ -195,20 +195,81 @@ export default function Vendors() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setCategoryFilter('')}
-            className={`px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${!categoryFilter ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}>
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${!categoryFilter ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-600 border-slate-300'}`}>
             전체
           </button>
           {categories.map((cat) => (
             <button key={cat} onClick={() => setCategoryFilter(categoryFilter === cat ? '' : cat)}
-              className={`px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${categoryFilter === cat ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}>
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${categoryFilter === cat ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-white text-slate-600 border-slate-300'}`}>
               {cat}
             </button>
           ))}
         </div>
       </div>
 
-      {/* 테이블 */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* 모바일 카드 */}
+      <div className="md:hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        {loading ? (
+          <div className="py-12 text-center text-slate-400 text-sm">불러오는 중...</div>
+        ) : filtered.length === 0 ? (
+          <div className="py-12 text-center text-slate-400 text-sm">
+            {search || categoryFilter ? '검색 결과가 없습니다.' : '등록된 거래처가 없습니다.'}
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {filtered.map((v) => (
+              <div key={v.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-slate-800">{v.name}</span>
+                      {v.category && (
+                        <span className="px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-600 rounded-full">{v.category}</span>
+                      )}
+                    </div>
+                    {v.contact_name && <p className="text-xs text-slate-500 mt-1">{v.contact_name}</p>}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                      {v.phone && (
+                        <a href={`tel:${v.phone}`} className="flex items-center gap-1 text-sm text-slate-600 hover:text-violet-600">
+                          <Phone size={12} className="text-slate-400" />{v.phone}
+                        </a>
+                      )}
+                      {v.email && (
+                        <a href={`mailto:${v.email}`} className="flex items-center gap-1 text-xs text-slate-500 hover:text-violet-600 truncate max-w-[180px]">
+                          <Mail size={11} className="text-slate-400 flex-shrink-0" />{v.email}
+                        </a>
+                      )}
+                    </div>
+                    {v.notes && <p className="text-xs text-slate-400 mt-1.5">{v.notes}</p>}
+                  </div>
+                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-0.5">
+                      <button onClick={() => { setEditingVendor(v); setShowForm(true) }}
+                        className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
+                        <Edit2 size={15} />
+                      </button>
+                      <button onClick={() => handleDelete(v)}
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                    <button onClick={() => setOrderVendor(v)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors whitespace-nowrap">
+                      <FileText size={11} />발주서
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {!loading && filtered.length > 0 && (
+          <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-400">총 {filtered.length}개 거래처</div>
+        )}
+      </div>
+
+      {/* 데스크탑 테이블 */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -265,8 +326,7 @@ export default function Vendors() {
                     <td className="px-4 py-3.5 text-center">
                       <button onClick={() => setOrderVendor(v)}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors mx-auto whitespace-nowrap">
-                        <FileText size={12} />
-                        발주서 작성
+                        <FileText size={12} />발주서 작성
                       </button>
                     </td>
                     <td className="px-4 py-3.5 text-center">

@@ -74,18 +74,17 @@ export default function Projects() {
   const filtered = projects.filter((p) => statusFilter === 'all' || p.status === statusFilter)
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">프로젝트</h1>
-          <p className="text-slate-500 text-sm mt-1">프로젝트별 출고/반입 현황 관리</p>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">프로젝트</h1>
+          <p className="text-slate-500 text-sm mt-0.5">프로젝트별 출고/반입 현황 관리</p>
         </div>
         <button
           onClick={() => setShowAddProject(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors shadow-sm"
+          className="flex items-center gap-2 px-3 py-2 md:px-4 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors shadow-sm"
         >
-          <Plus size={16} />
-          프로젝트 추가
+          <Plus size={16} /><span className="hidden sm:inline">프로젝트 추가</span><span className="sm:hidden">추가</span>
         </button>
       </div>
 
@@ -95,22 +94,97 @@ export default function Projects() {
           <button
             key={status}
             onClick={() => setStatusFilter(status)}
-            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-colors ${
               statusFilter === status
                 ? 'bg-violet-600 text-white'
-                : 'bg-white text-slate-600 border border-slate-300 hover:border-slate-400'
+                : 'bg-white text-slate-600 border border-slate-300'
             }`}
           >
             {status === 'all' ? '전체' : status}
             {status !== 'all' && (
-              <span className="ml-1.5 text-xs opacity-70">({projects.filter((p) => p.status === status).length})</span>
+              <span className="ml-1 text-xs opacity-70">({projects.filter((p) => p.status === status).length})</span>
             )}
           </button>
         ))}
       </div>
 
-      {/* Projects Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* 모바일 카드 */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          <div className="bg-white rounded-xl border border-slate-200 py-12 text-center text-slate-400 text-sm">불러오는 중...</div>
+        ) : filtered.length === 0 ? (
+          <div className="bg-white rounded-xl border border-slate-200 py-12 text-center text-slate-400 text-sm">프로젝트가 없습니다.</div>
+        ) : (
+          filtered.map((project) => {
+            const stats = projectStats[project.id]
+            const totalOut = stats?.total_out || 0
+            const totalReturn = stats?.total_return || 0
+            const totalLoss = stats?.total_loss || 0
+            const unreturned = totalOut - totalReturn - totalLoss
+            const statusClass = STATUS_COLORS[project.status] || 'bg-slate-100 text-slate-600'
+
+            return (
+              <div key={project.id}
+                onClick={() => navigate(`/projects/${project.id}`)}
+                className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm active:bg-violet-50 transition-colors cursor-pointer">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-slate-800">{project.name}</span>
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${statusClass}`}>{project.status}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-xs text-slate-500">
+                      {project.exhibition && <span>{project.exhibition}</span>}
+                      {project.exhibitor && <span>· {project.exhibitor}</span>}
+                      {project.manager && <span className="text-slate-600 font-medium">· {project.manager}</span>}
+                    </div>
+                    {project.start_date && (
+                      <p className="text-xs text-slate-400 mt-1">
+                        {formatDatetime(project.start_date, project.start_time)}
+                        {project.end_date && ` ~ ${formatDatetime(project.end_date, project.end_time)}`}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setEditingProject(project) }}
+                      className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                    >
+                      <Edit2 size={15} />
+                    </button>
+                    <ChevronRight size={18} className="text-slate-300" />
+                  </div>
+                </div>
+                {/* 통계 */}
+                <div className="grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-100">
+                  <div className="text-center">
+                    <p className="text-xs text-slate-400">출고</p>
+                    <p className={`text-sm font-bold ${totalOut > 0 ? 'text-red-600' : 'text-slate-300'}`}>{totalOut}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-slate-400">반입</p>
+                    <p className={`text-sm font-bold ${totalReturn > 0 ? 'text-blue-600' : 'text-slate-300'}`}>{totalReturn}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-slate-400">손실</p>
+                    <p className={`text-sm font-bold ${totalLoss > 0 ? 'text-orange-600' : 'text-slate-300'}`}>{totalLoss}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-slate-400">미반입</p>
+                    <p className={`text-sm font-bold ${unreturned > 0 ? 'text-red-600' : 'text-slate-300'}`}>{unreturned}</p>
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
+        {!loading && filtered.length > 0 && (
+          <p className="text-xs text-slate-400 text-center pb-2">총 {filtered.length}개 프로젝트</p>
+        )}
+      </div>
+
+      {/* 데스크탑 테이블 */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

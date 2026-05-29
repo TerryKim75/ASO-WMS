@@ -407,25 +407,25 @@ export default function Inventory() {
   }, [history, historySearch])
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">재고현황</h1>
-          <p className="text-slate-500 text-sm mt-1">전체 자재 재고 현황</p>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">재고현황</h1>
+          <p className="text-slate-500 text-sm mt-0.5">전체 자재 재고 현황</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowCategoryManage(true)}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-2 md:px-3 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
           >
-            <Settings2 size={15} />카테고리 관리
+            <Settings2 size={15} /><span className="hidden sm:inline">카테고리 관리</span>
           </button>
           <button
             onClick={() => setShowAddItem(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3 py-2 md:px-4 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors shadow-sm"
           >
-            <Plus size={16} />자재 추가
+            <Plus size={16} /><span className="hidden sm:inline">자재 추가</span><span className="sm:hidden">추가</span>
           </button>
         </div>
       </div>
@@ -434,7 +434,7 @@ export default function Inventory() {
       <div className="flex gap-2 flex-wrap">
         <button
           onClick={() => handleCategoryChange('전체')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+          className={`px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium rounded-lg border transition-colors ${
             selectedCategory === '전체'
               ? 'bg-violet-600 text-white border-violet-600'
               : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
@@ -448,7 +448,7 @@ export default function Inventory() {
             <button
               key={cat.id}
               onClick={() => handleCategoryChange(cat.name)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+              className={`px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium rounded-lg border transition-colors ${
                 selectedCategory === cat.name
                   ? style.tab
                   : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
@@ -472,8 +472,85 @@ export default function Inventory() {
         />
       </div>
 
-      {/* 재고 테이블 */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* 모바일 카드 */}
+      <div className="md:hidden space-y-2">
+        {loading ? (
+          <div className="bg-white rounded-xl border border-slate-200 py-12 text-center text-slate-400 text-sm">불러오는 중...</div>
+        ) : filtered.length === 0 ? (
+          <div className="bg-white rounded-xl border border-slate-200 py-12 text-center text-slate-400 text-sm">
+            {search ? '검색 결과가 없습니다.' : '자재가 없습니다.'}
+          </div>
+        ) : (
+          filtered.map((item) => {
+            const style = getCategoryStyle(item.category)
+            return (
+              <div key={item.id} className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  {/* 이미지 */}
+                  <div className="flex-shrink-0">
+                    {item.image_url ? (
+                      <button
+                        onClick={() => setPreviewImage({ url: item.image_url!, name: item.name })}
+                        className="w-12 h-12 rounded-lg overflow-hidden border border-slate-200"
+                      >
+                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                      </button>
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-slate-300">
+                        <ImageOff size={16} />
+                      </div>
+                    )}
+                  </div>
+                  {/* 이름 + 카테고리 */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-slate-800 truncate">{item.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full border ${style.badge}`}>
+                        {item.category}
+                      </span>
+                      <span className="text-xs text-slate-400">{item.unit}</span>
+                    </div>
+                  </div>
+                  {/* 총재고 */}
+                  <div className="flex-shrink-0 text-right">
+                    <p className={`text-2xl font-bold ${stockColor(item.current_stock)}`}>{item.current_stock.toLocaleString()}</p>
+                    <p className="text-xs text-slate-400">{item.unit}</p>
+                  </div>
+                </div>
+                {/* 통계 + 변경 버튼 */}
+                <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
+                  <div className="flex-1 grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-xs text-slate-400">입고</p>
+                      <p className="text-sm font-semibold text-green-700">{item.total_in.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400">출고</p>
+                      <p className="text-sm font-semibold text-red-600">{item.total_out.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400">손실</p>
+                      <p className="text-sm font-semibold text-orange-600">{item.total_loss.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setEditingStockItem(item)}
+                    className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors"
+                  >
+                    <RefreshCw size={11} />변경
+                  </button>
+                </div>
+              </div>
+            )
+          })
+        )}
+        {!loading && filtered.length > 0 && (
+          <p className="text-xs text-slate-400 text-center pb-2">총 {filtered.length}개 자재</p>
+        )}
+      </div>
+
+      {/* 데스크탑 재고 테이블 */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -559,8 +636,8 @@ export default function Inventory() {
 
       {/* 변경 내역 히스토리 */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="px-4 md:px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Clock size={15} className="text-slate-400" />
             <h2 className="font-semibold text-slate-800">변경 내역</h2>
             {historyLoaded && (
@@ -569,13 +646,13 @@ export default function Inventory() {
               </span>
             )}
           </div>
-          <div className="relative w-56">
+          <div className="relative w-full max-w-[200px]">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={historySearch}
               onChange={(e) => setHistorySearch(e.target.value)}
-              placeholder="자재명·카테고리·프로젝트"
+              placeholder="자재명·프로젝트"
               className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
             />
           </div>
@@ -596,17 +673,17 @@ export default function Inventory() {
                   {/* 날짜 헤더 */}
                   <button
                     onClick={() => toggleDate(date)}
-                    className="w-full flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors"
+                    className="w-full flex items-center justify-between px-4 md:px-5 py-3 hover:bg-slate-50 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 md:gap-3">
                       <span className="text-slate-400">
                         {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </span>
                       <span className="text-sm font-semibold text-slate-700">{formatDateLabel(date)}</span>
                       <span className="text-xs text-slate-400">{txs.length}건</span>
                     </div>
-                    {/* 날짜 요약 뱃지 */}
-                    <div className="flex items-center gap-2">
+                    {/* 날짜 요약 뱃지 - 데스크탑만 */}
+                    <div className="hidden sm:flex items-center gap-2">
                       {(['입고', '출고', '반입', '손실'] as TransactionType[]).map((t) => {
                         const count = txs.filter((tx) => tx.transaction_type === t).length
                         if (!count) return null
@@ -622,7 +699,32 @@ export default function Inventory() {
                   {/* 날짜 내 거래 목록 */}
                   {isOpen && (
                     <div className="border-t border-slate-50">
-                      <table className="w-full text-sm">
+                      {/* 모바일 */}
+                      <div className="sm:hidden divide-y divide-slate-50">
+                        {txs.map((tx) => (
+                          <div key={tx.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-800 truncate">{tx.itemName || '-'}</p>
+                              {tx.projectName && (
+                                <p className="text-xs text-slate-400 mt-0.5 truncate">{tx.projectName}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${typeBadge[tx.transaction_type]}`}>
+                                {typeLabel[tx.transaction_type]}
+                              </span>
+                              <span className={`text-sm font-bold ${
+                                tx.transaction_type === '입고' || tx.transaction_type === '반입' ? 'text-green-700' : 'text-red-600'
+                              }`}>
+                                {tx.transaction_type === '입고' || tx.transaction_type === '반입' ? '+' : '-'}{tx.quantity.toLocaleString()}
+                                <span className="text-xs text-slate-400 font-normal ml-0.5">{tx.itemUnit}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* 데스크탑 */}
+                      <table className="hidden sm:table w-full text-sm">
                         <tbody className="divide-y divide-slate-50">
                           {txs.map((tx) => {
                             const catStyle = tx.itemCategory ? getCategoryStyle(tx.itemCategory) : null
