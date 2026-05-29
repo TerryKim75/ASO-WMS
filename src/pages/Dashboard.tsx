@@ -36,7 +36,7 @@ export default function Dashboard() {
           .select('*, items(name, category, unit), wms_projects(name)')
           .order('created_at', { ascending: false })
           .limit(10),
-        supabase.from('inventory_transactions').select('item_id, transaction_type, quantity'),
+        supabase.from('inventory_transactions').select('item_id, transaction_type, quantity').limit(5000),
         supabase
           .from('wms_projects')
           .select('*')
@@ -47,24 +47,29 @@ export default function Dashboard() {
       const items = itemsRes.data || []
       const allTx = allTxRes.data || []
 
-      const stockMap: Record<string, { in: number; out: number; ret: number; loss: number }> = {}
+      const stockMap: Record<string, { in: number; out: number; ret: number; loss: number; adj: number; discard: number }> = {}
       allTx.forEach((tx) => {
-        if (!stockMap[tx.item_id]) stockMap[tx.item_id] = { in: 0, out: 0, ret: 0, loss: 0 }
+        if (!stockMap[tx.item_id]) stockMap[tx.item_id] = { in: 0, out: 0, ret: 0, loss: 0, adj: 0, discard: 0 }
         if (tx.transaction_type === '입고') stockMap[tx.item_id].in += tx.quantity
         if (tx.transaction_type === '출고') stockMap[tx.item_id].out += tx.quantity
         if (tx.transaction_type === '반입') stockMap[tx.item_id].ret += tx.quantity
         if (tx.transaction_type === '손실') stockMap[tx.item_id].loss += tx.quantity
+        if (tx.transaction_type === '파손') stockMap[tx.item_id].loss += tx.quantity
+        if (tx.transaction_type === '분실') stockMap[tx.item_id].loss += tx.quantity
+        if (tx.transaction_type === '재고조정') stockMap[tx.item_id].adj += tx.quantity
+        if (tx.transaction_type === '폐기') stockMap[tx.item_id].discard += tx.quantity
+        // 팩킹은 재고에 영향 없음
       })
 
       const itemsWithStock: ItemWithStock[] = items.map((item) => {
-        const s = stockMap[item.id] || { in: 0, out: 0, ret: 0, loss: 0 }
+        const s = stockMap[item.id] || { in: 0, out: 0, ret: 0, loss: 0, adj: 0, discard: 0 }
         return {
           ...item,
-          total_in: s.in,
+          total_in: s.in + s.adj,
           total_out: s.out,
           total_return: s.ret,
-          total_loss: s.loss,
-          current_stock: s.in - s.out + s.ret - s.loss,
+          total_loss: s.loss + s.discard,
+          current_stock: s.in + s.ret + s.adj - s.out - s.loss - s.discard,
         }
       })
 

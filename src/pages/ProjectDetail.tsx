@@ -151,9 +151,13 @@ function BulkTransactionModal({
     })
     if (rows.length === 0) { alert('수량을 1개 이상 입력해주세요.'); return }
     setLoading(true)
+    const itemIds = [...new Set(rows.map((r) => r.item_id))]
+    // 기존 데이터 백업 (insert 실패 시 복원용)
+    const { data: backup } = await supabase.from('inventory_transactions')
+      .select('item_id, transaction_type, quantity, notes, transaction_date')
+      .eq('project_id', projectId)
+      .in('item_id', itemIds)
     try {
-      // Delete only the items being saved, then reinsert
-      const itemIds = [...new Set(rows.map((r) => r.item_id))]
       const { error: delErr } = await supabase.from('inventory_transactions').delete()
         .eq('project_id', projectId)
         .in('item_id', itemIds)
@@ -161,12 +165,20 @@ function BulkTransactionModal({
       const { error: insErr } = await supabase.from('inventory_transactions').insert(
         rows.map((r) => ({ ...r, project_id: projectId, transaction_date: date }))
       )
-      if (insErr) throw insErr
+      if (insErr) {
+        // insert 실패 시 백업 복원
+        if (backup && backup.length > 0) {
+          await supabase.from('inventory_transactions').insert(
+            backup.map((r) => ({ ...r, project_id: projectId }))
+          )
+        }
+        throw insErr
+      }
       onSuccess()
       onClose()
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message || String(err)
-      alert(`저장 실패: ${msg}\n\nSupabase SQL Editor에서 transaction_type 제약조건을 업데이트해주세요.`)
+      alert(`저장 실패: ${msg}`)
     } finally {
       setLoading(false)
     }
@@ -578,13 +590,28 @@ export default function ProjectDetail() {
     if (editingQty.inp > 0) rows.push({ item_id: itemId, project_id: id!, transaction_type: '반입', quantity: editingQty.inp, transaction_date: today, notes: n })
     if (editingQty.damaged > 0) rows.push({ item_id: itemId, project_id: id!, transaction_type: '파손', quantity: editingQty.damaged, transaction_date: today, notes: n })
     if (editingQty.lost > 0) rows.push({ item_id: itemId, project_id: id!, transaction_type: '분실', quantity: editingQty.lost, transaction_date: today, notes: n })
+    // 기존 데이터 백업
+    const { data: backup } = await supabase.from('inventory_transactions')
+      .select('item_id, transaction_type, quantity, notes, transaction_date')
+      .eq('item_id', itemId)
+      .eq('project_id', id!)
     const { error: delErr } = await supabase.from('inventory_transactions').delete()
       .eq('item_id', itemId)
       .eq('project_id', id!)
     if (delErr) { alert('저장 중 오류가 발생했습니다.'); return }
     if (rows.length > 0) {
       const { error: insErr } = await supabase.from('inventory_transactions').insert(rows)
-      if (insErr) { alert(`저장 실패: ${insErr.message}`); fetchProjectData(); return }
+      if (insErr) {
+        // insert 실패 시 백업 복원
+        if (backup && backup.length > 0) {
+          await supabase.from('inventory_transactions').insert(
+            backup.map((r) => ({ ...r, project_id: id! }))
+          )
+        }
+        alert(`저장 실패: ${insErr.message}`)
+        fetchProjectData()
+        return
+      }
     }
     setEditingItemId(null)
     fetchProjectData()

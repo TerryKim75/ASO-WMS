@@ -287,7 +287,7 @@ export default function Inventory() {
     try {
       const [itemsRes, txRes, historyRes] = await Promise.all([
         supabase.from('items').select('*').order('category').order('name'),
-        supabase.from('inventory_transactions').select('item_id, transaction_type, quantity'),
+        supabase.from('inventory_transactions').select('item_id, transaction_type, quantity').limit(5000),
         supabase
           .from('inventory_transactions')
           .select('*, items(name, category, unit), wms_projects(name)')
