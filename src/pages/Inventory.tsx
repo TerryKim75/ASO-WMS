@@ -79,12 +79,54 @@ function StockEditModal({ item, onClose, onSuccess }: {
     if (!ok) return
     setSaving(true)
     try {
-      const rows: { item_id: string; transaction_type: string; quantity: number; transaction_date: string; notes: string }[] = []
-      if (deltaIn !== 0) rows.push({ item_id: item.id, transaction_type: '입고', quantity: deltaIn, transaction_date: today, notes: '수동 조정' })
-      if (deltaOut !== 0) rows.push({ item_id: item.id, transaction_type: '출고', quantity: deltaOut, transaction_date: today, notes: '수동 조정' })
-      if (deltaLoss !== 0) rows.push({ item_id: item.id, transaction_type: '손실', quantity: deltaLoss, transaction_date: today, notes: '수동 조정' })
-      const { error } = await supabase.from('inventory_transactions').insert(rows)
-      if (error) throw error
+      // 프로젝트 미연결 트랜잭션 삭제 후 새 절대값으로 재설정
+      // 입고: 항상 프로젝트 미연결 → 전체 삭제 후 새 값 삽입
+      if (deltaIn !== 0) {
+        await supabase.from('inventory_transactions').delete()
+          .eq('item_id', item.id).eq('transaction_type', '입고').is('project_id', null)
+        if (form.total_in > 0) {
+          const { error } = await supabase.from('inventory_transactions').insert({
+            item_id: item.id, transaction_type: '입고', quantity: form.total_in,
+            transaction_date: today, notes: '수동 조정',
+          })
+          if (error) throw error
+        }
+      }
+
+      // 출고: 프로젝트 연결 출고 외에 차이만 보정 트랜잭션 추가/삭제
+      if (deltaOut !== 0) {
+        await supabase.from('inventory_transactions').delete()
+          .eq('item_id', item.id).eq('transaction_type', '출고').is('project_id', null)
+        const { data: projOut } = await supabase.from('inventory_transactions')
+          .select('quantity').eq('item_id', item.id).eq('transaction_type', '출고').not('project_id', 'is', null)
+        const projOutTotal = (projOut || []).reduce((s: number, t: { quantity: number }) => s + t.quantity, 0)
+        const nonProjOut = form.total_out - projOutTotal
+        if (nonProjOut > 0) {
+          const { error } = await supabase.from('inventory_transactions').insert({
+            item_id: item.id, transaction_type: '출고', quantity: nonProjOut,
+            transaction_date: today, notes: '수동 조정',
+          })
+          if (error) throw error
+        }
+      }
+
+      // 손실: 프로젝트 파손/분실 외 순수 손실만 재설정
+      if (deltaLoss !== 0) {
+        await supabase.from('inventory_transactions').delete()
+          .eq('item_id', item.id).eq('transaction_type', '손실').is('project_id', null)
+        const { data: projLoss } = await supabase.from('inventory_transactions')
+          .select('quantity').eq('item_id', item.id).in('transaction_type', ['파손', '분실']).not('project_id', 'is', null)
+        const projLossTotal = (projLoss || []).reduce((s: number, t: { quantity: number }) => s + t.quantity, 0)
+        const nonProjLoss = form.total_loss - projLossTotal
+        if (nonProjLoss > 0) {
+          const { error } = await supabase.from('inventory_transactions').insert({
+            item_id: item.id, transaction_type: '손실', quantity: nonProjLoss,
+            transaction_date: today, notes: '수동 조정',
+          })
+          if (error) throw error
+        }
+      }
+
       onSuccess()
       onClose()
     } catch (err) {
