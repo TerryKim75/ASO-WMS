@@ -683,9 +683,9 @@ export default function ProjectDetail() {
     return [...map.values()]
       .map((s) => ({ ...s, unreturned: s.totalOut - s.totalReturn - s.totalDamaged - s.totalLost - s.totalLegacyLoss }))
       .sort((a, b) => {
-        const totalA = a.totalPacking + a.totalOut + a.totalReturn + a.totalDamaged + a.totalLost + a.totalLegacyLoss
-        const totalB = b.totalPacking + b.totalOut + b.totalReturn + b.totalDamaged + b.totalLost + b.totalLegacyLoss
-        return totalB - totalA
+        const catCmp = a.item.category.localeCompare(b.item.category, 'ko')
+        if (catCmp !== 0) return catCmp
+        return a.item.name.localeCompare(b.item.name, 'ko')
       })
   }, [transactions])
 
