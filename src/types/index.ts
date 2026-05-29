@@ -1,5 +1,5 @@
 export type Category = string
-export type TransactionType = '입고' | '출고' | '반입' | '손실' | '팩킹' | '파손' | '분실'
+export type TransactionType = '입고' | '출고' | '반입' | '손실' | '팩킹' | '파손' | '분실' | '재고조정' | '폐기'
 export type ProjectStatus = '제안중' | '계약완료' | '시공진행' | '완료' | '취소'
 
 export interface CategoryDef {
@@ -81,4 +81,13 @@ export interface ItemWithStock extends Item {
   total_out: number
   total_return: number
   total_loss: number
+}
+
+export interface ProjectItem {
+  id: string
+  project_id: string
+  item_id: string
+  planned_quantity: number
+  notes?: string
+  created_at: string
 }

@@ -984,6 +984,7 @@ export default function ProjectDetail() {
                 <th className="text-center px-3 py-3 font-semibold text-blue-700 text-xs">반입</th>
                 <th className="text-center px-3 py-3 font-semibold text-amber-700 text-xs">파손</th>
                 <th className="text-center px-3 py-3 font-semibold text-rose-700 text-xs">분실</th>
+                <th className="text-center px-3 py-3 font-semibold text-orange-600 text-xs">미반입</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">비고</th>
                 <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs w-24">수정</th>
               </tr>
@@ -991,7 +992,7 @@ export default function ProjectDetail() {
             <tbody>
               {filteredSummaries.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-5 py-12 text-center text-slate-400 text-sm">
+                  <td colSpan={10} className="px-5 py-12 text-center text-slate-400 text-sm">
                     {txSearch ? '검색 결과가 없습니다.' : '등록된 내역이 없습니다. 입출고 내역 작성 및 수정 버튼으로 추가하세요.'}
                   </td>
                 </tr>
@@ -1033,6 +1034,16 @@ export default function ProjectDetail() {
                           <input type="number" min={0} value={editingQty.lost || ''} placeholder="0"
                             onChange={(e) => setEditingQty({ ...editingQty, lost: Math.max(0, Number(e.target.value)) })}
                             className={inputCls} />
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {(() => {
+                            const unret = editingQty.out - editingQty.inp - editingQty.damaged - editingQty.lost
+                            return (
+                              <span className={`text-xs font-semibold ${unret > 0 ? 'text-orange-600' : 'text-slate-300'}`}>
+                                {unret > 0 ? unret : '-'}
+                              </span>
+                            )
+                          })()}
                         </td>
                         <td className="px-3 py-2">
                           <input type="text" value={editingQty.notes} placeholder="메모"
@@ -1088,6 +1099,11 @@ export default function ProjectDetail() {
                       <td className="px-3 py-3 text-center">
                         <span className={`font-semibold text-sm ${summary.totalLost > 0 ? 'text-rose-600' : 'text-slate-300'}`}>
                           {(summary.totalLost + summary.totalLegacyLoss) > 0 ? (summary.totalLost + summary.totalLegacyLoss).toLocaleString() : '-'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <span className={`font-semibold text-sm ${summary.unreturned > 0 ? 'text-orange-600' : 'text-slate-300'}`}>
+                          {summary.unreturned > 0 ? summary.unreturned.toLocaleString() : '-'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500 max-w-[140px] truncate">

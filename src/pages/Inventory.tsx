@@ -21,16 +21,20 @@ const typeBadge: Record<TransactionType, string> = {
   팩킹: 'bg-slate-100 text-slate-600',
   파손: 'bg-amber-100 text-amber-700',
   분실: 'bg-rose-100 text-rose-700',
+  재고조정: 'bg-purple-100 text-purple-700',
+  폐기: 'bg-gray-100 text-gray-600',
 }
 
 const typeLabel: Record<TransactionType, string> = {
-  입고: '신규추가',
-  출고: '출고/판매',
+  입고: '신규입고',
+  출고: '출고',
   반입: '반입',
   손실: '손실',
   팩킹: '팩킹',
   파손: '파손',
   분실: '분실',
+  재고조정: '재고조정',
+  폐기: '폐기',
 }
 
 function formatDateLabel(dateStr: string): string {
@@ -250,27 +254,29 @@ export default function Inventory() {
       const txs = txRes.data || []
 
       // 재고 합계
-      const stockMap: Record<string, { in: number; out: number; ret: number; loss: number }> = {}
+      const stockMap: Record<string, { in: number; out: number; ret: number; loss: number; adj: number; discard: number }> = {}
       txs.forEach((tx) => {
-        if (!stockMap[tx.item_id]) stockMap[tx.item_id] = { in: 0, out: 0, ret: 0, loss: 0 }
+        if (!stockMap[tx.item_id]) stockMap[tx.item_id] = { in: 0, out: 0, ret: 0, loss: 0, adj: 0, discard: 0 }
         if (tx.transaction_type === '입고') stockMap[tx.item_id].in += tx.quantity
         if (tx.transaction_type === '출고') stockMap[tx.item_id].out += tx.quantity
         if (tx.transaction_type === '반입') stockMap[tx.item_id].ret += tx.quantity
         if (tx.transaction_type === '손실') stockMap[tx.item_id].loss += tx.quantity
         if (tx.transaction_type === '파손') stockMap[tx.item_id].loss += tx.quantity
         if (tx.transaction_type === '분실') stockMap[tx.item_id].loss += tx.quantity
+        if (tx.transaction_type === '재고조정') stockMap[tx.item_id].adj += tx.quantity
+        if (tx.transaction_type === '폐기') stockMap[tx.item_id].discard += tx.quantity
         // 팩킹 does not affect stock
       })
 
       const withStock: ItemWithStock[] = allItems.map((item) => {
-        const s = stockMap[item.id] || { in: 0, out: 0, ret: 0, loss: 0 }
+        const s = stockMap[item.id] || { in: 0, out: 0, ret: 0, loss: 0, adj: 0, discard: 0 }
         return {
           ...item,
-          total_in: s.in,
+          total_in: s.in + s.adj,
           total_out: s.out,
           total_return: s.ret,
-          total_loss: s.loss,
-          current_stock: s.in - s.out + s.ret - s.loss,
+          total_loss: s.loss + s.discard,
+          current_stock: s.in + s.ret + s.adj - s.out - s.loss - s.discard,
         }
       })
       setItems(withStock)
