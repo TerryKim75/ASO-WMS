@@ -69,7 +69,36 @@ function StockEditModal({ item, onClose, onSuccess }: {
     total_loss: item.total_loss,
   })
   const [saving, setSaving] = useState(false)
+  // 프로젝트 연결 최솟값 (이 이하로는 편집 불가)
+  const [projMin, setProjMin] = useState({ out: 0, loss: 0, loaded: false })
   const today = new Date().toISOString().split('T')[0]
+
+  useEffect(() => {
+    const load = async () => {
+      const [outRes, lossRes] = await Promise.all([
+        supabase.from('inventory_transactions')
+          .select('quantity')
+          .eq('item_id', item.id)
+          .eq('transaction_type', '출고')
+          .not('project_id', 'is', null),
+        supabase.from('inventory_transactions')
+          .select('quantity')
+          .eq('item_id', item.id)
+          .in('transaction_type', ['파손', '분실'])
+          .not('project_id', 'is', null),
+      ])
+      const projOut = (outRes.data || []).reduce((s: number, t: { quantity: number }) => s + t.quantity, 0)
+      const projLoss = (lossRes.data || []).reduce((s: number, t: { quantity: number }) => s + t.quantity, 0)
+      setProjMin({ out: projOut, loss: projLoss, loaded: true })
+      // 현재 폼 값이 최솟값보다 작으면 최솟값으로 맞춤
+      setForm((prev) => ({
+        ...prev,
+        total_out: Math.max(prev.total_out, projOut),
+        total_loss: Math.max(prev.total_loss, projLoss),
+      }))
+    }
+    load()
+  }, [item.id])
 
   const deltaIn = form.total_in - item.total_in
   const deltaOut = form.total_out - item.total_out
@@ -79,12 +108,18 @@ function StockEditModal({ item, onClose, onSuccess }: {
 
   const handleSave = async () => {
     if (!hasChanges) { onClose(); return }
+    if (form.total_out < projMin.out) {
+      alert(`출고는 프로젝트 연결 수량(${projMin.out})보다 작게 설정할 수 없습니다.`)
+      return
+    }
+    if (form.total_loss < projMin.loss) {
+      alert(`손실은 프로젝트 연결 수량(${projMin.loss})보다 작게 설정할 수 없습니다.`)
+      return
+    }
     const ok = window.confirm('수량을 수정하겠습니까?')
     if (!ok) return
     setSaving(true)
     try {
-      // 프로젝트 미연결 트랜잭션 삭제 후 새 절대값으로 재설정
-      // 입고: 항상 프로젝트 미연결 → 전체 삭제 후 새 값 삽입
       if (deltaIn !== 0) {
         await supabase.from('inventory_transactions').delete()
           .eq('item_id', item.id).eq('transaction_type', '입고').is('project_id', null)
@@ -97,14 +132,10 @@ function StockEditModal({ item, onClose, onSuccess }: {
         }
       }
 
-      // 출고: 프로젝트 연결 출고 외에 차이만 보정 트랜잭션 추가/삭제
       if (deltaOut !== 0) {
         await supabase.from('inventory_transactions').delete()
           .eq('item_id', item.id).eq('transaction_type', '출고').is('project_id', null)
-        const { data: projOut } = await supabase.from('inventory_transactions')
-          .select('quantity').eq('item_id', item.id).eq('transaction_type', '출고').not('project_id', 'is', null)
-        const projOutTotal = (projOut || []).reduce((s: number, t: { quantity: number }) => s + t.quantity, 0)
-        const nonProjOut = form.total_out - projOutTotal
+        const nonProjOut = form.total_out - projMin.out
         if (nonProjOut > 0) {
           const { error } = await supabase.from('inventory_transactions').insert({
             item_id: item.id, transaction_type: '출고', quantity: nonProjOut,
@@ -114,14 +145,10 @@ function StockEditModal({ item, onClose, onSuccess }: {
         }
       }
 
-      // 손실: 프로젝트 파손/분실 외 순수 손실만 재설정
       if (deltaLoss !== 0) {
         await supabase.from('inventory_transactions').delete()
           .eq('item_id', item.id).eq('transaction_type', '손실').is('project_id', null)
-        const { data: projLoss } = await supabase.from('inventory_transactions')
-          .select('quantity').eq('item_id', item.id).in('transaction_type', ['파손', '분실']).not('project_id', 'is', null)
-        const projLossTotal = (projLoss || []).reduce((s: number, t: { quantity: number }) => s + t.quantity, 0)
-        const nonProjLoss = form.total_loss - projLossTotal
+        const nonProjLoss = form.total_loss - projMin.loss
         if (nonProjLoss > 0) {
           const { error } = await supabase.from('inventory_transactions').insert({
             item_id: item.id, transaction_type: '손실', quantity: nonProjLoss,
@@ -140,8 +167,8 @@ function StockEditModal({ item, onClose, onSuccess }: {
     }
   }
 
-  const ic = 'w-full text-right border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500'
-  const stockColor = newStock <= 0 ? 'text-red-600' : newStock <= 10 ? 'text-yellow-600' : 'text-green-700'
+  const ic = 'w-full text-right border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-slate-50 disabled:text-slate-400'
+  const previewColor = newStock <= 0 ? 'text-red-600' : newStock <= 10 ? 'text-yellow-600' : 'text-green-700'
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -158,31 +185,50 @@ function StockEditModal({ item, onClose, onSuccess }: {
           {/* 총재고 미리보기 */}
           <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-200">
             <p className="text-xs text-slate-500 mb-1">수정 후 총재고</p>
-            <p className={`text-3xl font-bold ${stockColor}`}>{newStock.toLocaleString()}</p>
+            <p className={`text-3xl font-bold ${previewColor}`}>{newStock.toLocaleString()}</p>
             <p className="text-xs text-slate-400 mt-1">{item.unit}</p>
           </div>
 
           {/* 수정 필드 */}
           <div className="space-y-3">
-            {[
-              { label: '입고', key: 'total_in' as const, color: 'text-green-700', current: item.total_in },
-              { label: '출고', key: 'total_out' as const, color: 'text-red-600', current: item.total_out },
-              { label: '손실', key: 'total_loss' as const, color: 'text-orange-600', current: item.total_loss },
-            ].map(({ label, key, color, current }) => (
-              <div key={key} className="flex items-center gap-4">
-                <div className="w-24 flex-shrink-0">
-                  <p className={`text-sm font-semibold ${color}`}>{label}</p>
-                  <p className="text-xs text-slate-400">현재 {current.toLocaleString()}</p>
-                </div>
-                <input
-                  type="number"
-                  min={0}
-                  value={form[key]}
-                  onChange={(e) => setForm({ ...form, [key]: Math.max(0, Number(e.target.value)) })}
-                  className={ic}
-                />
+            {/* 입고 */}
+            <div className="flex items-center gap-4">
+              <div className="w-28 flex-shrink-0">
+                <p className="text-sm font-semibold text-green-700">입고</p>
+                <p className="text-xs text-slate-400">현재 {item.total_in.toLocaleString()}</p>
               </div>
-            ))}
+              <input type="number" min={0} value={form.total_in}
+                onChange={(e) => setForm({ ...form, total_in: Math.max(0, Number(e.target.value)) })}
+                className={ic} />
+            </div>
+
+            {/* 출고 */}
+            <div className="flex items-center gap-4">
+              <div className="w-28 flex-shrink-0">
+                <p className="text-sm font-semibold text-red-600">출고</p>
+                <p className="text-xs text-slate-400">현재 {item.total_out.toLocaleString()}</p>
+                {projMin.loaded && projMin.out > 0 && (
+                  <p className="text-xs text-orange-500">프로젝트 {projMin.out} (최소)</p>
+                )}
+              </div>
+              <input type="number" min={projMin.out} value={form.total_out}
+                onChange={(e) => setForm({ ...form, total_out: Math.max(projMin.out, Number(e.target.value)) })}
+                className={ic} />
+            </div>
+
+            {/* 손실 */}
+            <div className="flex items-center gap-4">
+              <div className="w-28 flex-shrink-0">
+                <p className="text-sm font-semibold text-orange-600">손실</p>
+                <p className="text-xs text-slate-400">현재 {item.total_loss.toLocaleString()}</p>
+                {projMin.loaded && projMin.loss > 0 && (
+                  <p className="text-xs text-orange-500">프로젝트 {projMin.loss} (최소)</p>
+                )}
+              </div>
+              <input type="number" min={projMin.loss} value={form.total_loss}
+                onChange={(e) => setForm({ ...form, total_loss: Math.max(projMin.loss, Number(e.target.value)) })}
+                className={ic} />
+            </div>
           </div>
 
           {/* 변경 사항 요약 */}
@@ -210,9 +256,9 @@ function StockEditModal({ item, onClose, onSuccess }: {
 
         <div className="flex gap-3 px-5 py-4 border-t bg-slate-50">
           <button onClick={onClose} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">취소</button>
-          <button onClick={handleSave} disabled={saving || !hasChanges}
+          <button onClick={handleSave} disabled={saving || !hasChanges || !projMin.loaded}
             className="flex-1 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-50">
-            {saving ? '저장 중...' : '수정 완료'}
+            {saving ? '저장 중...' : !projMin.loaded ? '로딩 중...' : '수정 완료'}
           </button>
         </div>
       </div>
