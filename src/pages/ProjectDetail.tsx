@@ -651,10 +651,40 @@ export default function ProjectDetail() {
 
   useEffect(() => { fetchProjectData() }, [fetchProjectData])
 
+  const handleSettle = async (silent = false) => {
+    const unreturnedItems = itemSummaries.filter((s) => s.unreturned > 0)
+    if (unreturnedItems.length === 0) {
+      if (!silent) alert('정산할 미입고 자재가 없습니다.')
+      return
+    }
+    const list = unreturnedItems.map((s) => `• ${s.item.name}: ${s.unreturned}${s.item.unit}`).join('\n')
+    const ok = window.confirm(`미입고 수량을 반입 처리하여 재고를 정산하겠습니까?\n\n${list}`)
+    if (!ok) return
+    const today = new Date().toISOString().split('T')[0]
+    const rows = unreturnedItems.map((s) => ({
+      item_id: s.item.id,
+      project_id: id,
+      transaction_type: '반입' as const,
+      quantity: s.unreturned,
+      transaction_date: today,
+      notes: '프로젝트 완료 정산',
+    }))
+    const { error } = await supabase.from('inventory_transactions').insert(rows)
+    if (error) { alert('정산 실패: ' + error.message); return }
+    fetchProjectData()
+  }
+
   const handleStatusUpdate = async () => {
     if (!project || !id) return
     const { error } = await supabase.from('wms_projects').update({ status: newStatus }).eq('id', id)
-    if (!error) { setProject({ ...project, status: newStatus }); setEditingStatus(false) }
+    if (!error) {
+      setProject({ ...project, status: newStatus })
+      setEditingStatus(false)
+      if (newStatus === '완료') {
+        const hasUnreturned = itemSummaries.some((s) => s.unreturned > 0)
+        if (hasUnreturned) await handleSettle(true)
+      }
+    }
   }
 
   const handleProjectFileUpload = async (field: 'design' | 'drawing', file: File) => {
@@ -976,6 +1006,14 @@ export default function ProjectDetail() {
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {totalUnreturned > 0 && (
+              <button
+                onClick={() => handleSettle(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition-colors"
+              >
+                <Check size={13} />정산 처리 ({totalUnreturned}개 미입고)
+              </button>
+            )}
             {itemSummaries.some((s) => s.totalPacking > 0) && (
               <button
                 onClick={handlePrintPacking}
