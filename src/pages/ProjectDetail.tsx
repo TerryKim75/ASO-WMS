@@ -237,7 +237,7 @@ function BulkTransactionModal({
                 <th className="text-left px-3 py-3 font-semibold text-slate-600 text-xs">자재명</th>
                 <th className="text-center px-2 py-3 font-semibold text-slate-600 text-xs w-20">팩킹</th>
                 <th className="text-center px-2 py-3 font-semibold text-red-700 text-xs w-20">출고</th>
-                <th className="text-center px-2 py-3 font-semibold text-blue-700 text-xs w-20">반입</th>
+                <th className="text-center px-2 py-3 font-semibold text-blue-700 text-xs w-20">입고</th>
                 <th className="text-center px-2 py-3 font-semibold text-amber-700 text-xs w-20">파손</th>
                 <th className="text-center px-2 py-3 font-semibold text-rose-700 text-xs w-20">분실</th>
                 <th className="text-left px-3 py-3 font-semibold text-slate-600 text-xs">비고</th>
@@ -949,7 +949,7 @@ export default function ProjectDetail() {
           </div>
           <div className="text-center">
             <p className="text-xl md:text-2xl font-bold text-blue-600">{totalReturn.toLocaleString()}</p>
-            <p className="text-xs text-slate-500 mt-0.5 md:mt-1">반입</p>
+            <p className="text-xs text-slate-500 mt-0.5 md:mt-1">입고</p>
           </div>
           <div className="text-center">
             <p className="text-xl md:text-2xl font-bold text-orange-600">{totalDamagedLost.toLocaleString()}</p>
@@ -959,7 +959,7 @@ export default function ProjectDetail() {
             <p className={`text-xl md:text-2xl font-bold ${totalUnreturned > 0 ? 'text-red-600' : 'text-slate-400'}`}>
               {totalUnreturned.toLocaleString()}
             </p>
-            <p className="text-xs text-slate-500 mt-0.5 md:mt-1">미반입</p>
+            <p className="text-xs text-slate-500 mt-0.5 md:mt-1">미입고</p>
           </div>
         </div>
       </div>
@@ -1038,9 +1038,9 @@ export default function ProjectDetail() {
                     {[
                       { label: '팩킹', value: summary.totalPacking, color: 'text-slate-700' },
                       { label: '출고', value: summary.totalOut, color: 'text-red-600' },
-                      { label: '반입', value: summary.totalReturn, color: 'text-blue-600' },
+                      { label: '입고', value: summary.totalReturn, color: 'text-blue-600' },
                       { label: '파손/분실', value: summary.totalDamaged + summary.totalLost + summary.totalLegacyLoss, color: 'text-amber-600' },
-                      { label: '미반입', value: summary.unreturned, color: summary.unreturned > 0 ? 'text-orange-600' : 'text-slate-300' },
+                      { label: '미입고', value: summary.unreturned, color: summary.unreturned > 0 ? 'text-orange-600' : 'text-slate-300' },
                     ].map(({ label, value, color }) => (
                       <div key={label} className="bg-slate-50 rounded-lg py-1.5">
                         <p className={`text-sm font-bold ${color}`}>{value > 0 ? value : '-'}</p>
@@ -1066,10 +1066,10 @@ export default function ProjectDetail() {
                 <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">자재명</th>
                 <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs">팩킹</th>
                 <th className="text-center px-3 py-3 font-semibold text-red-700 text-xs">출고</th>
-                <th className="text-center px-3 py-3 font-semibold text-blue-700 text-xs">반입</th>
+                <th className="text-center px-3 py-3 font-semibold text-blue-700 text-xs">입고</th>
                 <th className="text-center px-3 py-3 font-semibold text-amber-700 text-xs">파손</th>
                 <th className="text-center px-3 py-3 font-semibold text-rose-700 text-xs">분실</th>
-                <th className="text-center px-3 py-3 font-semibold text-orange-600 text-xs">미반입</th>
+                <th className="text-center px-3 py-3 font-semibold text-orange-600 text-xs">미입고</th>
                 <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">비고</th>
                 <th className="text-center px-3 py-3 font-semibold text-slate-600 text-xs w-24">수정</th>
               </tr>

@@ -1,5 +1,5 @@
 export type Category = string
-export type TransactionType = '입고' | '출고' | '반입' | '손실' | '팩킹' | '파손' | '분실' | '재고조정' | '폐기'
+export type TransactionType = '입고' | '생산입고' | '출고' | '반입' | '손실' | '팩킹' | '파손' | '분실' | '재고조정' | '폐기'
 export type ProjectStatus = '제안중' | '계약완료' | '시공진행' | '완료' | '취소'
 
 export interface CategoryDef {

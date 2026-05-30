@@ -53,19 +53,19 @@ export default function Bids() {
   }
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">시공 입찰</h1>
-          <p className="text-slate-500 text-sm mt-1">시공인력 입찰 제안 현황</p>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">시공 입찰</h1>
+          <p className="text-slate-500 text-sm mt-0.5">시공인력 입찰 제안 현황</p>
         </div>
       </div>
 
       {/* 필터 탭 */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {(['전체', '대기', '낙찰', '거절'] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-colors ${
               filter === f ? 'bg-violet-600 text-white' : 'bg-white text-slate-600 border border-slate-300 hover:border-slate-400'
             }`}>
             {f}
@@ -74,8 +74,58 @@ export default function Bids() {
         ))}
       </div>
 
-      {/* 테이블 */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* 모바일 카드 */}
+      <div className="md:hidden space-y-3">
+        {loading ? (
+          <div className="bg-white rounded-xl border border-slate-200 py-12 text-center text-slate-400 text-sm">불러오는 중...</div>
+        ) : filtered.length === 0 ? (
+          <div className="bg-white rounded-xl border border-slate-200 py-12 text-center text-slate-400 text-sm">입찰 제안이 없습니다.</div>
+        ) : (
+          filtered.map((bid) => (
+            <div key={bid.id} className={`bg-white rounded-xl border border-slate-200 p-4 shadow-sm ${bid.status === '거절' ? 'opacity-50' : ''}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <button onClick={() => navigate(`/projects/${bid.project_id}`)}
+                    className="flex items-center gap-1 font-semibold text-violet-700 text-sm">
+                    {bid.wms_projects?.name || '-'}<ChevronRight size={12} className="opacity-50" />
+                  </button>
+                  {bid.wms_projects?.start_date && (
+                    <p className="text-xs text-slate-400 mt-0.5">{bid.wms_projects.start_date.replace(/-/g, '.')}</p>
+                  )}
+                  <div className="flex items-center gap-3 mt-2">
+                    <p className="font-medium text-slate-800 text-sm">{bid.bidder_name}</p>
+                    <a href={`tel:${bid.bidder_phone}`} className="flex items-center gap-1 text-xs text-slate-500 hover:text-violet-600">
+                      <Phone size={11} />{bid.bidder_phone}
+                    </a>
+                  </div>
+                  {bid.note && <p className="text-xs text-slate-400 mt-1 truncate">{bid.note}</p>}
+                </div>
+                <div className="flex-shrink-0 text-right">
+                  <p className="font-bold text-slate-800">{bid.proposed_price.toLocaleString()}원</p>
+                  <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full border ${STATUS_STYLE[bid.status]}`}>
+                    {bid.status}
+                  </span>
+                </div>
+              </div>
+              {bid.status === '대기' && (
+                <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+                  <button onClick={() => handleBidStatus(bid.id, '낙찰')}
+                    className="flex-1 py-2 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors">
+                    낙찰
+                  </button>
+                  <button onClick={() => handleBidStatus(bid.id, '거절')}
+                    className="flex-1 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors">
+                    거절
+                  </button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* 데스크탑 테이블 */}
+      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {loading ? (
           <div className="py-20 text-center text-slate-400">불러오는 중...</div>
         ) : filtered.length === 0 ? (
@@ -103,17 +153,13 @@ export default function Bids() {
                     'hover:bg-slate-50'
                   }`}>
                     <td className="px-5 py-3">
-                      <button
-                        onClick={() => navigate(`/projects/${bid.project_id}`)}
-                        className="flex items-center gap-1 text-sm font-medium text-violet-700 hover:text-violet-900 transition-colors"
-                      >
+                      <button onClick={() => navigate(`/projects/${bid.project_id}`)}
+                        className="flex items-center gap-1 text-sm font-medium text-violet-700 hover:text-violet-900 transition-colors">
                         {bid.wms_projects?.name || '-'}
                         <ChevronRight size={12} className="opacity-50" />
                       </button>
                       {bid.wms_projects?.start_date && (
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {bid.wms_projects.start_date.replace(/-/g, '.')}
-                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">{bid.wms_projects.start_date.replace(/-/g, '.')}</p>
                       )}
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-800">{bid.bidder_name}</td>
@@ -123,16 +169,12 @@ export default function Bids() {
                         <Phone size={12} />{bid.bidder_phone}
                       </a>
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-800">
-                      {bid.proposed_price.toLocaleString()}원
-                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-slate-800">{bid.proposed_price.toLocaleString()}원</td>
                     <td className="px-4 py-3 text-sm text-slate-500 max-w-[180px] truncate">
                       {bid.note || <span className="text-slate-300">-</span>}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full border ${STATUS_STYLE[bid.status]}`}>
-                        {bid.status}
-                      </span>
+                      <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full border ${STATUS_STYLE[bid.status]}`}>{bid.status}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
                       {bid.status === '대기' && (

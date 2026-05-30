@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Search, X, ImageOff, Settings2, RefreshCw, Clock, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Search, X, ImageOff, Settings2, RefreshCw, Clock, ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useCategories } from '../contexts/CategoriesContext'
 import type { ItemWithStock, InventoryTransaction, TransactionType } from '../types'
@@ -14,7 +14,8 @@ function stockColor(stock: number) {
 }
 
 const typeBadge: Record<TransactionType, string> = {
-  입고: 'bg-green-100 text-green-700',
+  입고: 'bg-emerald-100 text-emerald-700',
+  생산입고: 'bg-emerald-100 text-emerald-700',
   출고: 'bg-red-100 text-red-700',
   반입: 'bg-blue-100 text-blue-700',
   손실: 'bg-orange-100 text-orange-700',
@@ -26,9 +27,10 @@ const typeBadge: Record<TransactionType, string> = {
 }
 
 const typeLabel: Record<TransactionType, string> = {
-  입고: '신규입고',
+  입고: '생산입고',
+  생산입고: '생산입고',
   출고: '출고',
-  반입: '반입',
+  반입: '입고',
   손실: '손실',
   팩킹: '팩킹',
   파손: '파손',
@@ -58,208 +60,157 @@ interface HistoryTx extends InventoryTransaction {
   projectName?: string
 }
 
-function StockEditModal({ item, onClose, onSuccess }: {
+function ProductionStockModal({ item, onClose, onSuccess }: {
   item: ItemWithStock
   onClose: () => void
   onSuccess: () => void
 }) {
-  const [form, setForm] = useState({
-    total_in: item.total_in,
-    total_out: item.total_out,
-    total_loss: item.total_loss,
-  })
-  const [saving, setSaving] = useState(false)
-  // 프로젝트 연결 최솟값 (이 이하로는 편집 불가)
-  const [projMin, setProjMin] = useState({ out: 0, loss: 0, loaded: false })
   const today = new Date().toISOString().split('T')[0]
+  const [entries, setEntries] = useState<{ id: string; transaction_type: string; quantity: number; transaction_date: string; notes?: string | null }[]>([])
+  const [loadingEntries, setLoadingEntries] = useState(true)
+  const [form, setForm] = useState({ date: today, quantity: '', notes: '' })
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
 
-  useEffect(() => {
-    const load = async () => {
-      const [outRes, lossRes] = await Promise.all([
-        supabase.from('inventory_transactions')
-          .select('quantity')
-          .eq('item_id', item.id)
-          .eq('transaction_type', '출고')
-          .not('project_id', 'is', null),
-        supabase.from('inventory_transactions')
-          .select('quantity')
-          .eq('item_id', item.id)
-          .in('transaction_type', ['파손', '분실'])
-          .not('project_id', 'is', null),
-      ])
-      const projOut = (outRes.data || []).reduce((s: number, t: { quantity: number }) => s + t.quantity, 0)
-      const projLoss = (lossRes.data || []).reduce((s: number, t: { quantity: number }) => s + t.quantity, 0)
-      setProjMin({ out: projOut, loss: projLoss, loaded: true })
-      // 현재 폼 값이 최솟값보다 작으면 최솟값으로 맞춤
-      setForm((prev) => ({
-        ...prev,
-        total_out: Math.max(prev.total_out, projOut),
-        total_loss: Math.max(prev.total_loss, projLoss),
-      }))
-    }
-    load()
+  const loadEntries = useCallback(async () => {
+    const { data } = await supabase
+      .from('inventory_transactions')
+      .select('id, transaction_type, quantity, transaction_date, notes')
+      .eq('item_id', item.id)
+      .in('transaction_type', ['입고', '생산입고'])
+      .is('project_id', null)
+      .order('transaction_date', { ascending: false })
+    setEntries(data || [])
+    setLoadingEntries(false)
   }, [item.id])
 
-  const deltaIn = form.total_in - item.total_in
-  const deltaOut = form.total_out - item.total_out
-  const deltaLoss = form.total_loss - item.total_loss
-  const hasChanges = deltaIn !== 0 || deltaOut !== 0 || deltaLoss !== 0
-  const newStock = form.total_in - form.total_out + item.total_return - form.total_loss
+  useEffect(() => { loadEntries() }, [loadEntries])
 
-  const handleSave = async () => {
-    if (!hasChanges) { onClose(); return }
-    if (form.total_out < projMin.out) {
-      alert(`출고는 프로젝트 연결 수량(${projMin.out})보다 작게 설정할 수 없습니다.`)
-      return
-    }
-    if (form.total_loss < projMin.loss) {
-      alert(`손실은 프로젝트 연결 수량(${projMin.loss})보다 작게 설정할 수 없습니다.`)
-      return
-    }
-    const ok = window.confirm('수량을 수정하겠습니까?')
-    if (!ok) return
+  const total = entries.reduce((s, e) => s + e.quantity, 0)
+
+  const handleAdd = async () => {
+    const qty = Number(form.quantity)
+    if (!qty || qty <= 0) { alert('수량을 입력해주세요.'); return }
     setSaving(true)
-    try {
-      if (deltaIn !== 0) {
-        await supabase.from('inventory_transactions').delete()
-          .eq('item_id', item.id).eq('transaction_type', '입고').is('project_id', null)
-        if (form.total_in > 0) {
-          const { error } = await supabase.from('inventory_transactions').insert({
-            item_id: item.id, transaction_type: '입고', quantity: form.total_in,
-            transaction_date: today, notes: '수동 조정',
-          })
-          if (error) throw error
-        }
-      }
-
-      if (deltaOut !== 0) {
-        await supabase.from('inventory_transactions').delete()
-          .eq('item_id', item.id).eq('transaction_type', '출고').is('project_id', null)
-        const nonProjOut = form.total_out - projMin.out
-        if (nonProjOut > 0) {
-          const { error } = await supabase.from('inventory_transactions').insert({
-            item_id: item.id, transaction_type: '출고', quantity: nonProjOut,
-            transaction_date: today, notes: '수동 조정',
-          })
-          if (error) throw error
-        }
-      }
-
-      if (deltaLoss !== 0) {
-        await supabase.from('inventory_transactions').delete()
-          .eq('item_id', item.id).eq('transaction_type', '손실').is('project_id', null)
-        const nonProjLoss = form.total_loss - projMin.loss
-        if (nonProjLoss > 0) {
-          const { error } = await supabase.from('inventory_transactions').insert({
-            item_id: item.id, transaction_type: '손실', quantity: nonProjLoss,
-            transaction_date: today, notes: '수동 조정',
-          })
-          if (error) throw error
-        }
-      }
-
-      onSuccess()
-      onClose()
-    } catch (err) {
-      alert('저장 실패: ' + (err as Error).message)
-    } finally {
-      setSaving(false)
-    }
+    const { error } = await supabase.from('inventory_transactions').insert({
+      item_id: item.id,
+      transaction_type: '생산입고',
+      quantity: qty,
+      transaction_date: form.date,
+      notes: form.notes || null,
+    })
+    setSaving(false)
+    if (error) { alert('저장 실패: ' + error.message); return }
+    setForm({ date: today, quantity: '', notes: '' })
+    await loadEntries()
+    onSuccess()
   }
 
-  const ic = 'w-full text-right border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:bg-slate-50 disabled:text-slate-400'
-  const previewColor = newStock <= 0 ? 'text-red-600' : newStock <= 10 ? 'text-yellow-600' : 'text-green-700'
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('이 항목을 삭제하겠습니까?')) return
+    setDeleting(id)
+    await supabase.from('inventory_transactions').delete().eq('id', id)
+    setDeleting(null)
+    await loadEntries()
+    onSuccess()
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm">
-        <div className="flex items-center justify-between px-5 py-4 border-b">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0">
           <div>
-            <h3 className="font-bold text-slate-800">재고 수량 수정</h3>
-            <p className="text-xs text-slate-400 mt-0.5">{item.name}</p>
+            <h3 className="font-bold text-slate-800">생산입고 관리</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{item.name} · 총 <span className="font-semibold text-emerald-700">{total.toLocaleString()} {item.unit}</span></p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
         </div>
 
-        <div className="p-5 space-y-4">
-          {/* 총재고 미리보기 */}
-          <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-200">
-            <p className="text-xs text-slate-500 mb-1">수정 후 총재고</p>
-            <p className={`text-3xl font-bold ${previewColor}`}>{newStock.toLocaleString()}</p>
-            <p className="text-xs text-slate-400 mt-1">{item.unit}</p>
+        {/* Add form */}
+        <div className="px-5 py-4 bg-slate-50 border-b flex-shrink-0">
+          <p className="text-xs font-semibold text-slate-600 mb-3">입고 추가</p>
+          <div className="flex gap-2 flex-wrap">
+            <input
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 w-36"
+            />
+            <input
+              type="number"
+              min="1"
+              placeholder="수량"
+              value={form.quantity}
+              onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 w-24"
+            />
+            <input
+              type="text"
+              placeholder="메모 (선택)"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 flex-1 min-w-[100px]"
+            />
+            <button
+              onClick={handleAdd}
+              disabled={saving || !form.quantity}
+              className="flex-shrink-0 flex items-center gap-1 px-3 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <Plus size={14} />{saving ? '저장중' : '추가'}
+            </button>
           </div>
+        </div>
 
-          {/* 수정 필드 */}
-          <div className="space-y-3">
-            {/* 입고 */}
-            <div className="flex items-center gap-4">
-              <div className="w-28 flex-shrink-0">
-                <p className="text-sm font-semibold text-green-700">입고</p>
-                <p className="text-xs text-slate-400">현재 {item.total_in.toLocaleString()}</p>
-              </div>
-              <input type="number" min={0} value={form.total_in}
-                onChange={(e) => setForm({ ...form, total_in: Math.max(0, Number(e.target.value)) })}
-                className={ic} />
-            </div>
-
-            {/* 출고 */}
-            <div className="flex items-center gap-4">
-              <div className="w-28 flex-shrink-0">
-                <p className="text-sm font-semibold text-red-600">출고</p>
-                <p className="text-xs text-slate-400">현재 {item.total_out.toLocaleString()}</p>
-                {projMin.loaded && projMin.out > 0 && (
-                  <p className="text-xs text-orange-500">프로젝트 {projMin.out} (최소)</p>
-                )}
-              </div>
-              <input type="number" min={projMin.out} value={form.total_out}
-                onChange={(e) => setForm({ ...form, total_out: Math.max(projMin.out, Number(e.target.value)) })}
-                className={ic} />
-            </div>
-
-            {/* 손실 */}
-            <div className="flex items-center gap-4">
-              <div className="w-28 flex-shrink-0">
-                <p className="text-sm font-semibold text-orange-600">손실</p>
-                <p className="text-xs text-slate-400">현재 {item.total_loss.toLocaleString()}</p>
-                {projMin.loaded && projMin.loss > 0 && (
-                  <p className="text-xs text-orange-500">프로젝트 {projMin.loss} (최소)</p>
-                )}
-              </div>
-              <input type="number" min={projMin.loss} value={form.total_loss}
-                onChange={(e) => setForm({ ...form, total_loss: Math.max(projMin.loss, Number(e.target.value)) })}
-                className={ic} />
-            </div>
-          </div>
-
-          {/* 변경 사항 요약 */}
-          {hasChanges && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs space-y-1">
-              <p className="font-semibold text-amber-800 mb-1.5">변경 사항</p>
-              {deltaIn !== 0 && (
-                <p className="text-amber-700">입고: {item.total_in.toLocaleString()} → {form.total_in.toLocaleString()}
-                  <span className={`ml-1.5 font-bold ${deltaIn > 0 ? 'text-green-600' : 'text-red-600'}`}>({deltaIn > 0 ? '+' : ''}{deltaIn})</span>
-                </p>
-              )}
-              {deltaOut !== 0 && (
-                <p className="text-amber-700">출고: {item.total_out.toLocaleString()} → {form.total_out.toLocaleString()}
-                  <span className={`ml-1.5 font-bold ${deltaOut > 0 ? 'text-red-600' : 'text-green-600'}`}>({deltaOut > 0 ? '+' : ''}{deltaOut})</span>
-                </p>
-              )}
-              {deltaLoss !== 0 && (
-                <p className="text-amber-700">손실: {item.total_loss.toLocaleString()} → {form.total_loss.toLocaleString()}
-                  <span className={`ml-1.5 font-bold ${deltaLoss > 0 ? 'text-red-600' : 'text-green-600'}`}>({deltaLoss > 0 ? '+' : ''}{deltaLoss})</span>
-                </p>
-              )}
-            </div>
+        {/* Entry list */}
+        <div className="flex-1 overflow-y-auto">
+          {loadingEntries ? (
+            <div className="py-8 text-center text-slate-400 text-sm">불러오는 중...</div>
+          ) : entries.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 text-sm">등록된 생산입고 내역이 없습니다.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-white border-b border-slate-100">
+                <tr>
+                  <th className="text-left px-5 py-2.5 text-xs font-semibold text-slate-500">날짜</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500">수량</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500">메모</th>
+                  <th className="w-10 px-3 py-2.5"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {entries.map((e) => (
+                  <tr key={e.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-3 text-slate-700 whitespace-nowrap">{e.transaction_date.replace(/-/g, '.')}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-emerald-700">
+                      {e.quantity.toLocaleString()}
+                      <span className="text-xs text-slate-400 font-normal ml-0.5">{item.unit}</span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-400 truncate max-w-[120px]">{e.notes || ''}</td>
+                    <td className="px-3 py-3 text-center">
+                      {e.transaction_type === '생산입고' ? (
+                        <button
+                          onClick={() => handleDelete(e.id)}
+                          disabled={deleting === e.id}
+                          className="text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-300 px-1">구</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
 
-        <div className="flex gap-3 px-5 py-4 border-t bg-slate-50">
-          <button onClick={onClose} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">취소</button>
-          <button onClick={handleSave} disabled={saving || !hasChanges || !projMin.loaded}
-            className="flex-1 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-50">
-            {saving ? '저장 중...' : !projMin.loaded ? '로딩 중...' : '수정 완료'}
-          </button>
+        <div className="px-5 py-3.5 border-t bg-slate-50 flex items-center justify-between flex-shrink-0">
+          <p className="text-sm text-slate-600">총 생산입고: <span className="font-bold text-emerald-700">{total.toLocaleString()} {item.unit}</span></p>
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">닫기</button>
         </div>
       </div>
     </div>
@@ -304,6 +255,7 @@ export default function Inventory() {
       txs.forEach((tx) => {
         if (!stockMap[tx.item_id]) stockMap[tx.item_id] = { in: 0, out: 0, ret: 0, loss: 0, adj: 0, discard: 0 }
         if (tx.transaction_type === '입고') stockMap[tx.item_id].in += tx.quantity
+        if (tx.transaction_type === '생산입고') stockMap[tx.item_id].in += tx.quantity
         if (tx.transaction_type === '출고') stockMap[tx.item_id].out += tx.quantity
         if (tx.transaction_type === '반입') stockMap[tx.item_id].ret += tx.quantity
         if (tx.transaction_type === '손실') stockMap[tx.item_id].loss += tx.quantity
@@ -521,16 +473,16 @@ export default function Inventory() {
                 <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
                   <div className="flex-1 grid grid-cols-3 gap-2 text-center">
                     <div>
-                      <p className="text-xs text-slate-400">입고</p>
-                      <p className="text-sm font-semibold text-green-700">{item.total_in.toLocaleString()}</p>
+                      <p className="text-xs text-slate-400">생산입고</p>
+                      <p className="text-sm font-semibold text-emerald-700">{item.total_in.toLocaleString()}</p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-400">출고</p>
                       <p className="text-sm font-semibold text-red-600">{item.total_out.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-400">손실</p>
-                      <p className="text-sm font-semibold text-orange-600">{item.total_loss.toLocaleString()}</p>
+                      <p className="text-xs text-slate-400">입고</p>
+                      <p className="text-sm font-semibold text-blue-600">{item.total_return.toLocaleString()}</p>
                     </div>
                   </div>
                   <button
@@ -560,17 +512,18 @@ export default function Inventory() {
                 <th className="text-left px-4 py-3.5 font-semibold text-slate-600">카테고리</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-slate-600">단위</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-slate-700 bg-slate-100">총재고</th>
+                <th className="text-center px-4 py-3.5 font-semibold text-emerald-700">생산입고</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-red-700">출고</th>
-                <th className="text-center px-4 py-3.5 font-semibold text-green-700">입고</th>
+                <th className="text-center px-4 py-3.5 font-semibold text-blue-700">입고</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-orange-700">손실</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-slate-600 w-20">변경</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-400">불러오는 중...</td></tr>
+                <tr><td colSpan={10} className="px-5 py-12 text-center text-slate-400">불러오는 중...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-400">
+                <tr><td colSpan={10} className="px-5 py-12 text-center text-slate-400">
                   {search ? '검색 결과가 없습니다.' : '자재가 없습니다. 자재를 추가해주세요.'}
                 </td></tr>
               ) : (
@@ -609,8 +562,9 @@ export default function Inventory() {
                           {item.current_stock.toLocaleString()}
                         </span>
                       </td>
+                      <td className="px-4 py-3.5 text-center text-emerald-700">{item.total_in.toLocaleString()}</td>
                       <td className="px-4 py-3.5 text-center text-red-600">{item.total_out.toLocaleString()}</td>
-                      <td className="px-4 py-3.5 text-center text-green-700">{item.total_in.toLocaleString()}</td>
+                      <td className="px-4 py-3.5 text-center text-blue-600">{item.total_return.toLocaleString()}</td>
                       <td className="px-4 py-3.5 text-center text-orange-600">{item.total_loss.toLocaleString()}</td>
                       <td className="px-4 py-3.5 text-center">
                         <button
@@ -684,7 +638,7 @@ export default function Inventory() {
                     </div>
                     {/* 날짜 요약 뱃지 - 데스크탑만 */}
                     <div className="hidden sm:flex items-center gap-2">
-                      {(['입고', '출고', '반입', '손실'] as TransactionType[]).map((t) => {
+                      {(['생산입고', '입고', '출고', '반입', '손실'] as TransactionType[]).map((t) => {
                         const count = txs.filter((tx) => tx.transaction_type === t).length
                         if (!count) return null
                         return (
@@ -714,9 +668,9 @@ export default function Inventory() {
                                 {typeLabel[tx.transaction_type]}
                               </span>
                               <span className={`text-sm font-bold ${
-                                tx.transaction_type === '입고' || tx.transaction_type === '반입' ? 'text-green-700' : 'text-red-600'
+                                tx.transaction_type === '입고' || tx.transaction_type === '생산입고' || tx.transaction_type === '반입' ? 'text-green-700' : 'text-red-600'
                               }`}>
-                                {tx.transaction_type === '입고' || tx.transaction_type === '반입' ? '+' : '-'}{tx.quantity.toLocaleString()}
+                                {tx.transaction_type === '입고' || tx.transaction_type === '생산입고' || tx.transaction_type === '반입' ? '+' : '-'}{tx.quantity.toLocaleString()}
                                 <span className="text-xs text-slate-400 font-normal ml-0.5">{tx.itemUnit}</span>
                               </span>
                             </div>
@@ -751,7 +705,7 @@ export default function Inventory() {
                                       ? 'text-green-700'
                                       : 'text-red-600'
                                   }>
-                                    {tx.transaction_type === '입고' || tx.transaction_type === '반입' ? '+' : '-'}
+                                    {tx.transaction_type === '입고' || tx.transaction_type === '생산입고' || tx.transaction_type === '반입' ? '+' : '-'}
                                     {tx.quantity.toLocaleString()}
                                   </span>
                                   <span className="text-xs text-slate-400 font-normal ml-1">{tx.itemUnit}</span>
@@ -783,7 +737,7 @@ export default function Inventory() {
       {showAddItem && <AddItemModal onClose={() => setShowAddItem(false)} onSuccess={fetchItems} />}
       {showCategoryManage && <CategoryManageModal onClose={() => setShowCategoryManage(false)} />}
       {editingStockItem && (
-        <StockEditModal
+        <ProductionStockModal
           item={editingStockItem}
           onClose={() => setEditingStockItem(null)}
           onSuccess={fetchItems}

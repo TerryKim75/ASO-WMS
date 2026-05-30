@@ -164,7 +164,7 @@ export default function WorkReport() {
       {showNameSelect && <NameSelectModal onSelect={handleSelectName} />}
 
       {/* Header */}
-      <div className="px-6 py-4 bg-white border-b border-slate-200 flex items-center gap-3 flex-wrap">
+      <div className="px-4 md:px-6 py-3 md:py-4 bg-white border-b border-slate-200 flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
             <ClipboardList size={20} className="text-violet-600" />
@@ -206,8 +206,8 @@ export default function WorkReport() {
 
         {isOwnView && viewMode !== 'team' && (
           <button onClick={() => setModal({ tab: 'daily', date: new Date() })}
-            className="ml-auto flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors">
-            <PenLine size={15} />업무보고서 작성
+            className="ml-auto flex items-center gap-2 px-3 md:px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors">
+            <PenLine size={15} /><span className="hidden sm:inline">업무보고서 </span>작성
           </button>
         )}
       </div>
@@ -216,7 +216,7 @@ export default function WorkReport() {
       {viewMode === 'team' ? (
         <TeamOverview members={MEMBERS} currentUser={userName} />
       ) : (
-        <div className="flex-1 overflow-auto px-6 py-5">
+        <div className="flex-1 overflow-auto px-4 md:px-6 py-4 md:py-5">
           {loading ? (
             <div className="text-center py-20 text-slate-400 text-sm">불러오는 중...</div>
           ) : entries.length === 0 ? (
@@ -484,7 +484,7 @@ function ReportWriteModal({ initialTab, initialDate, targetUser, readOnly, onClo
         {loading ? (
           <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">불러오는 중...</div>
         ) : (
-          <div className="flex-1 overflow-auto px-6 py-5">
+          <div className="flex-1 overflow-auto px-4 md:px-6 py-4 md:py-5">
             <div className="space-y-4">
               {tab === 'daily' ? (
                 <>

@@ -7,7 +7,8 @@ import type { InventoryTransaction, TransactionType, WmsProject, Item } from '..
 import { STATUS_COLORS } from './Projects'
 
 const typeBadge: Record<TransactionType, string> = {
-  입고: 'bg-green-100 text-green-700',
+  입고: 'bg-emerald-100 text-emerald-700',
+  생산입고: 'bg-emerald-100 text-emerald-700',
   출고: 'bg-red-100 text-red-700',
   반입: 'bg-blue-100 text-blue-700',
   손실: 'bg-orange-100 text-orange-700',
@@ -16,6 +17,19 @@ const typeBadge: Record<TransactionType, string> = {
   분실: 'bg-rose-100 text-rose-700',
   재고조정: 'bg-purple-100 text-purple-700',
   폐기: 'bg-gray-100 text-gray-600',
+}
+
+const typeLabel: Record<TransactionType, string> = {
+  입고: '생산입고',
+  생산입고: '생산입고',
+  출고: '출고',
+  반입: '입고',
+  손실: '손실',
+  팩킹: '팩킹',
+  파손: '파손',
+  분실: '분실',
+  재고조정: '재고조정',
+  폐기: '폐기',
 }
 
 type DeliveryStatus = '준비중' | '출고' | '입고완료'
@@ -204,14 +218,14 @@ export default function Transactions() {
               className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
                 typeFilter === t
                   ? t === '' ? 'bg-slate-700 text-white border-slate-700'
-                    : t === '입고' ? 'bg-green-600 text-white border-green-600'
+                    : t === '입고' ? 'bg-emerald-600 text-white border-emerald-600'
                     : t === '출고' ? 'bg-red-600 text-white border-red-600'
                     : t === '반입' ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-orange-500 text-white border-orange-500'
                   : 'bg-white text-slate-600 border-slate-300'
               }`}
             >
-              {t || '전체'}
+              {t ? typeLabel[t] : '전체'}
             </button>
           ))}
         </div>
@@ -291,11 +305,11 @@ export default function Transactions() {
                         <p className={`font-semibold ${group.totalOut > 0 ? 'text-red-600' : 'text-slate-300'}`}>{group.totalOut.toLocaleString()}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-slate-400">반입</p>
+                        <p className="text-xs text-slate-400">입고</p>
                         <p className={`font-semibold ${group.totalReturn > 0 ? 'text-blue-600' : 'text-slate-300'}`}>{group.totalReturn.toLocaleString()}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-slate-400">미반입</p>
+                        <p className="text-xs text-slate-400">미입고</p>
                         <p className={`font-semibold ${unreturned > 0 ? 'text-orange-600' : 'text-slate-300'}`}>{unreturned.toLocaleString()}</p>
                       </div>
                     </div>
@@ -315,13 +329,13 @@ export default function Transactions() {
                           <span>출고 <strong className="text-red-600">{group.totalOut.toLocaleString()}</strong></span>
                         )}
                         {group.totalReturn > 0 && (
-                          <span>반입 <strong className="text-blue-600">{group.totalReturn.toLocaleString()}</strong></span>
+                          <span>입고 <strong className="text-blue-600">{group.totalReturn.toLocaleString()}</strong></span>
                         )}
                         {group.totalLoss > 0 && (
                           <span>손실 <strong className="text-orange-600">{group.totalLoss.toLocaleString()}</strong></span>
                         )}
                         {unreturned > 0 && (
-                          <span>미반입 <strong className="text-orange-600">{unreturned.toLocaleString()}</strong></span>
+                          <span>미입고 <strong className="text-orange-600">{unreturned.toLocaleString()}</strong></span>
                         )}
                       </div>
                       <button
@@ -354,7 +368,7 @@ export default function Transactions() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
                                     <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-medium rounded-full ${typeBadge[tx.transaction_type]}`}>
-                                      {tx.transaction_type}
+                                      {typeLabel[tx.transaction_type]}
                                     </span>
                                     <span className="font-medium text-slate-800 text-sm truncate">{item?.name || '-'}</span>
                                   </div>
@@ -401,7 +415,7 @@ export default function Transactions() {
                                     </td>
                                     <td className="px-4 py-2.5 text-center">
                                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${typeBadge[tx.transaction_type]}`}>
-                                        {tx.transaction_type}
+                                        {typeLabel[tx.transaction_type]}
                                       </span>
                                     </td>
                                     <td className="px-4 py-2.5 text-center font-semibold text-slate-800">

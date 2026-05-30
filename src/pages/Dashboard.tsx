@@ -51,6 +51,7 @@ export default function Dashboard() {
       allTx.forEach((tx) => {
         if (!stockMap[tx.item_id]) stockMap[tx.item_id] = { in: 0, out: 0, ret: 0, loss: 0, adj: 0, discard: 0 }
         if (tx.transaction_type === '입고') stockMap[tx.item_id].in += tx.quantity
+        if (tx.transaction_type === '생산입고') stockMap[tx.item_id].in += tx.quantity
         if (tx.transaction_type === '출고') stockMap[tx.item_id].out += tx.quantity
         if (tx.transaction_type === '반입') stockMap[tx.item_id].ret += tx.quantity
         if (tx.transaction_type === '손실') stockMap[tx.item_id].loss += tx.quantity
@@ -154,7 +155,36 @@ export default function Dashboard() {
         ) : allItems.length === 0 ? (
           <div className="p-8 text-center text-slate-400 text-sm">등록된 자재가 없습니다.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* 모바일 목록 */}
+          <div className="md:hidden divide-y divide-slate-50">
+            {allItems.map((item) => {
+              const outRatio = item.total_in > 0 ? Math.min((item.total_out / item.total_in) * 100, 100) : 0
+              const barColor = outRatio >= 90 ? 'bg-red-500' : outRatio >= 60 ? 'bg-orange-400' : 'bg-violet-500'
+              return (
+                <div key={item.id} onClick={() => navigate('/inventory')}
+                  className="px-4 py-3 flex items-center gap-3 cursor-pointer active:bg-slate-50">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-800 text-sm truncate">{item.name}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${outRatio}%` }} />
+                      </div>
+                      <span className="text-xs text-slate-400 flex-shrink-0">{outRatio > 0 ? `${Math.round(outRatio)}%` : '-'}</span>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    <p className={`text-lg font-bold ${item.current_stock <= 0 ? 'text-red-600' : item.current_stock <= 10 ? 'text-orange-500' : 'text-slate-700'}`}>
+                      {item.current_stock.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-slate-400">{item.unit}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {/* 데스크탑 테이블 */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
@@ -207,6 +237,7 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
