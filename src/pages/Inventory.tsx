@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Search, X, ImageOff, Settings2, RefreshCw, Clock, ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
+import { Plus, Search, X, ImageOff, Settings2, RefreshCw, Clock, ChevronDown, ChevronRight, Trash2, Pencil, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useCategories } from '../contexts/CategoriesContext'
 import type { ItemWithStock, InventoryTransaction, TransactionType } from '../types'
@@ -71,6 +71,9 @@ function ProductionStockModal({ item, onClose, onSuccess }: {
   const [form, setForm] = useState({ date: today, quantity: '', notes: '' })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ date: '', quantity: '', notes: '' })
+  const [editSaving, setEditSaving] = useState(false)
 
   const loadEntries = useCallback(async () => {
     const { data } = await supabase
@@ -111,6 +114,25 @@ function ProductionStockModal({ item, onClose, onSuccess }: {
     setDeleting(id)
     await supabase.from('inventory_transactions').delete().eq('id', id)
     setDeleting(null)
+    await loadEntries()
+    onSuccess()
+  }
+
+  const handleStartEdit = (e: { id: string; transaction_date: string; quantity: number; notes?: string | null }) => {
+    setEditingId(e.id)
+    setEditForm({ date: e.transaction_date, quantity: String(e.quantity), notes: e.notes || '' })
+  }
+
+  const handleSaveEdit = async () => {
+    const qty = Number(editForm.quantity)
+    if (!qty || qty <= 0) { alert('수량을 입력해주세요.'); return }
+    setEditSaving(true)
+    const { error } = await supabase.from('inventory_transactions')
+      .update({ quantity: qty, transaction_date: editForm.date, notes: editForm.notes || null })
+      .eq('id', editingId!)
+    setEditSaving(false)
+    if (error) { alert('저장 실패: ' + error.message); return }
+    setEditingId(null)
     await loadEntries()
     onSuccess()
   }
@@ -180,29 +202,94 @@ function ProductionStockModal({ item, onClose, onSuccess }: {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {entries.map((e) => (
-                  <tr key={e.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 text-slate-700 whitespace-nowrap">{e.transaction_date.replace(/-/g, '.')}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-emerald-700">
-                      {e.quantity.toLocaleString()}
-                      <span className="text-xs text-slate-400 font-normal ml-0.5">{item.unit}</span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-400 truncate max-w-[120px]">{e.notes || ''}</td>
-                    <td className="px-3 py-3 text-center">
-                      {e.transaction_type === '생산입고' ? (
-                        <button
-                          onClick={() => handleDelete(e.id)}
-                          disabled={deleting === e.id}
-                          className="text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      ) : (
-                        <span className="text-xs text-slate-300 px-1">구</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {entries.map((e) => {
+                  const isEditing = editingId === e.id
+                  const canEdit = e.transaction_type === '생산입고'
+                  if (isEditing) {
+                    return (
+                      <tr key={e.id} className="bg-violet-50">
+                        <td className="px-3 py-2">
+                          <input
+                            type="date"
+                            value={editForm.date}
+                            onChange={(ev) => setEditForm({ ...editForm, date: ev.target.value })}
+                            className="border border-violet-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-violet-500 w-32"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="number"
+                            min="1"
+                            value={editForm.quantity}
+                            onChange={(ev) => setEditForm({ ...editForm, quantity: ev.target.value })}
+                            className="border border-violet-300 rounded px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-violet-500 w-20"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={editForm.notes}
+                            onChange={(ev) => setEditForm({ ...editForm, notes: ev.target.value })}
+                            placeholder="메모"
+                            className="border border-violet-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-violet-500 w-full"
+                          />
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <div className="flex items-center gap-1 justify-center">
+                            <button
+                              onClick={handleSaveEdit}
+                              disabled={editSaving}
+                              className="text-emerald-600 hover:text-emerald-700 disabled:opacity-50"
+                              title="저장"
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="text-slate-400 hover:text-slate-600"
+                              title="취소"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  }
+                  return (
+                    <tr key={e.id} className="hover:bg-slate-50 group">
+                      <td className="px-5 py-3 text-slate-700 whitespace-nowrap text-sm">{e.transaction_date.replace(/-/g, '.')}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-emerald-700">
+                        {e.quantity.toLocaleString()}
+                        <span className="text-xs text-slate-400 font-normal ml-0.5">{item.unit}</span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400 truncate max-w-[120px]">{e.notes || ''}</td>
+                      <td className="px-3 py-3 text-center">
+                        {canEdit ? (
+                          <div className="flex items-center gap-1.5 justify-center">
+                            <button
+                              onClick={() => handleStartEdit(e)}
+                              className="text-slate-300 hover:text-violet-500 transition-colors"
+                              title="수정"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(e.id)}
+                              disabled={deleting === e.id}
+                              className="text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
+                              title="삭제"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-300 px-1">구</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           )}
@@ -232,6 +319,18 @@ export default function Inventory() {
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null)
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
   const [historyLoaded, setHistoryLoaded] = useState(false)
+
+  const handleDeleteItem = async (item: ItemWithStock) => {
+    const hasTx = item.total_in > 0 || item.total_out > 0 || item.total_return > 0 || item.total_loss > 0
+    const msg = hasTx
+      ? `"${item.name}" 자재와 모든 관련 입출고 내역을 삭제하겠습니까?\n이 작업은 되돌릴 수 없습니다.`
+      : `"${item.name}" 자재를 삭제하겠습니까?`
+    if (!window.confirm(msg)) return
+    await supabase.from('inventory_transactions').delete().eq('item_id', item.id)
+    const { error } = await supabase.from('items').delete().eq('id', item.id)
+    if (error) { alert('삭제 실패: ' + error.message); return }
+    fetchItems()
+  }
 
   const fetchItems = useCallback(async () => {
     setLoading(true)
@@ -485,12 +584,20 @@ export default function Inventory() {
                       <p className="text-sm font-semibold text-blue-600">{item.total_return.toLocaleString()}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setEditingStockItem(item)}
-                    className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors"
-                  >
-                    <RefreshCw size={11} />변경
-                  </button>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button
+                      onClick={() => setEditingStockItem(item)}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors"
+                    >
+                      <RefreshCw size={11} />변경
+                    </button>
+                    <button
+                      onClick={() => handleDeleteItem(item)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={11} />삭제
+                    </button>
+                  </div>
                 </div>
               </div>
             )
@@ -567,12 +674,21 @@ export default function Inventory() {
                       <td className="px-4 py-3.5 text-center text-blue-600">{item.total_return.toLocaleString()}</td>
                       <td className="px-4 py-3.5 text-center text-orange-600">{item.total_loss.toLocaleString()}</td>
                       <td className="px-4 py-3.5 text-center">
-                        <button
-                          onClick={() => setEditingStockItem(item)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors"
-                        >
-                          <RefreshCw size={11} />변경
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => setEditingStockItem(item)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors"
+                          >
+                            <RefreshCw size={11} />변경
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItem(item)}
+                            className="inline-flex items-center justify-center w-7 h-7 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="자재 삭제"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
