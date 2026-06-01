@@ -204,7 +204,6 @@ function ProductionStockModal({ item, onClose, onSuccess }: {
               <tbody className="divide-y divide-slate-50">
                 {entries.map((e) => {
                   const isEditing = editingId === e.id
-                  const canEdit = e.transaction_type === '생산입고'
                   if (isEditing) {
                     return (
                       <tr key={e.id} className="bg-violet-50">
@@ -265,27 +264,23 @@ function ProductionStockModal({ item, onClose, onSuccess }: {
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-400 truncate max-w-[120px]">{e.notes || ''}</td>
                       <td className="px-3 py-3 text-center">
-                        {canEdit ? (
-                          <div className="flex items-center gap-1.5 justify-center">
-                            <button
-                              onClick={() => handleStartEdit(e)}
-                              className="text-slate-300 hover:text-violet-500 transition-colors"
-                              title="수정"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(e.id)}
-                              disabled={deleting === e.id}
-                              className="text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
-                              title="삭제"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-300 px-1">구</span>
-                        )}
+                        <div className="flex items-center gap-1.5 justify-center">
+                          <button
+                            onClick={() => handleStartEdit(e)}
+                            className="text-slate-300 hover:text-violet-500 transition-colors"
+                            title="수정"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(e.id)}
+                            disabled={deleting === e.id}
+                            className="text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
+                            title="삭제"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
