@@ -3,7 +3,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Menu, X,
   LayoutDashboard, Package, ArrowLeftRight, FolderKanban,
-  Hammer, Building2, ChevronRight, ClipboardList, Users, Gavel,
+  Hammer, Building2, ChevronRight, ClipboardList, Users, Gavel, BarChart2,
 } from 'lucide-react'
 import Sidebar from './Sidebar'
 import { useCategories, CATEGORY_COLORS } from '../contexts/CategoriesContext'
@@ -11,6 +11,7 @@ import { useCategories, CATEGORY_COLORS } from '../contexts/CategoriesContext'
 const navItems = [
   { to: '/', label: '대시보드', icon: LayoutDashboard, exact: true },
   { to: '/inventory', label: '재고현황', icon: Package },
+  { to: '/material-frequency', label: '자재사용빈도', icon: BarChart2 },
   { to: '/transactions', label: '입출고내역', icon: ArrowLeftRight },
   { to: '/projects', label: '프로젝트', icon: FolderKanban },
   { to: '/staff', label: '시공인력', icon: Hammer },

@@ -12,6 +12,7 @@ import WorkReport from './pages/WorkReport'
 import Employees from './pages/Employees'
 import BidForm from './pages/BidForm'
 import Bids from './pages/Bids'
+import MaterialFrequency from './pages/MaterialFrequency'
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
             <Route path="work-report" element={<WorkReport />} />
             <Route path="employees" element={<Employees />} />
             <Route path="bids" element={<Bids />} />
+            <Route path="material-frequency" element={<MaterialFrequency />} />
           </Route>
         </Routes>
       </CategoriesProvider>
