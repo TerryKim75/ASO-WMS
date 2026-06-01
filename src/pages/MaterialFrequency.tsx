@@ -37,7 +37,7 @@ export default function MaterialFrequency() {
     const projectSets = new Map<string, Set<string>>()
 
     txs.forEach((tx) => {
-      const item = tx.items as { name: string; category: string; unit: string } | null
+      const item = tx.items as unknown as { name: string; category: string; unit: string } | null
       if (!item) return
       if (!freqMap.has(tx.item_id)) {
         freqMap.set(tx.item_id, { name: item.name, category: item.category, unit: item.unit, txCount: 0, totalQty: 0 })
