@@ -91,3 +91,113 @@ export interface ProjectItem {
   notes?: string
   created_at: string
 }
+
+// ============================================================
+// 견적서 (Estimate)
+// ============================================================
+
+export type ClientType = '기획사용' | '참가사용'
+export type EstimateStatus = '작성중' | '발송완료' | '계약완료' | '취소'
+export type EstimateCategory =
+  | '시스템 자재' | '그래픽' | '전기/조명' | '가구/비품' | '운송'
+  | '설치/철거 인건비' | '전시장 비용' | '디자인/PM' | '기타'
+export type AdjustmentType = 'overhead' | 'discount'
+export type AdjustmentValueType = 'rate' | 'fixed'
+
+export interface ItemMaster {
+  id: string
+  category: EstimateCategory
+  name: string
+  description?: string
+  unit: string
+  default_execution_unit_cost: number
+  sort_order: number
+  is_active: boolean
+  created_at: string
+}
+
+export interface PricingPolicy {
+  id: string
+  client_type: ClientType
+  category: EstimateCategory | 'OVERALL'
+  default_margin_rate: number
+  min_margin_rate: number
+  max_margin_rate: number
+  created_at: string
+}
+
+export interface RiskOption {
+  id: string
+  name: string
+  default_rate: number
+  sort_order: number
+  is_active: boolean
+  created_at: string
+}
+
+export interface Estimate {
+  id: string
+  estimate_number: string
+  client_type: ClientType
+  client_name: string
+  client_contact?: string
+  exhibition_name?: string
+  venue?: string
+  booth_size?: string
+  booth_type?: string
+  install_date?: string
+  dismantle_date?: string
+  pm?: string
+  valid_until?: string
+  project_id?: string
+  status: EstimateStatus
+  review_required: boolean
+  vat_rate: number
+  notes?: string
+  customer_notes?: string
+  payment_terms?: string
+  included_scope?: string
+  excluded_scope?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface EstimateItem {
+  id: string
+  estimate_id: string
+  item_master_id?: string
+  category: EstimateCategory
+  name: string
+  description?: string
+  unit: string
+  execution_unit_cost: number
+  quantity: number
+  margin_rate: number
+  execution_total: number
+  quoted_amount: number
+  show_to_client: boolean
+  supplier?: string
+  memo?: string
+  is_custom: boolean
+  sort_order: number
+  created_at: string
+}
+
+export interface EstimateAdjustment {
+  id: string
+  estimate_id: string
+  adjustment_type: AdjustmentType
+  label?: string
+  value_type: AdjustmentValueType
+  value: number
+  created_at: string
+}
+
+export interface EstimateRisk {
+  id: string
+  estimate_id: string
+  risk_option_id?: string
+  name: string
+  rate: number
+  created_at: string
+}

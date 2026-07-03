@@ -13,6 +13,9 @@ import Employees from './pages/Employees'
 import BidForm from './pages/BidForm'
 import Bids from './pages/Bids'
 import MaterialFrequency from './pages/MaterialFrequency'
+import Estimates from './pages/Estimates'
+import EstimateForm from './pages/EstimateForm'
+import EstimateDetail from './pages/EstimateDetail'
 
 function App() {
   return (
@@ -32,6 +35,10 @@ function App() {
             <Route path="employees" element={<Employees />} />
             <Route path="bids" element={<Bids />} />
             <Route path="material-frequency" element={<MaterialFrequency />} />
+            <Route path="estimates" element={<Estimates />} />
+            <Route path="estimates/new" element={<EstimateForm />} />
+            <Route path="estimates/:id" element={<EstimateDetail />} />
+            <Route path="estimates/:id/edit" element={<EstimateForm />} />
           </Route>
         </Routes>
       </CategoriesProvider>
