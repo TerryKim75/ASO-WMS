@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, Save, Trash2 } from 'lucide-react'
+import { Plus, Save, Trash2, Pencil, Check } from 'lucide-react'
 import {
   fetchItemMasterForAdmin, upsertItemMasterRows, deleteItemMasterRow, type ItemMasterDraft,
 } from '../lib/estimateActions'
 import { deriveMarginRate } from '../lib/estimateCalculations'
 import { ESTIMATE_CATEGORIES } from '../components/estimates/EstimateItemsAccordion'
-import { formatPercent } from '../lib/format'
+import { formatKRW, formatPercent } from '../lib/format'
 import type { EstimateCategory, EstimateUnit, ItemMaster } from '../types'
 
 const ESTIMATE_UNITS: EstimateUnit[] = ['개', '회배', '식', '세트', '회', '장', '미터', '대', '시간', 'KW', '모듈']
@@ -33,6 +33,7 @@ export default function EstimatePriceList() {
   const [saving, setSaving] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState<EstimateCategory | 'all'>('all')
   const [search, setSearch] = useState('')
+  const [editingIds, setEditingIds] = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -57,11 +58,22 @@ export default function EstimatePriceList() {
 
   const handleAddRow = () => {
     const category = categoryFilter === 'all' ? ESTIMATE_CATEGORIES[0] : categoryFilter
-    setRows((prev) => [emptyRow(category), ...prev])
+    const row = emptyRow(category)
+    setRows((prev) => [row, ...prev])
+    setEditingIds((prev) => new Set(prev).add(row.id))
   }
 
   const handleChangeRow = (id: string, patch: Partial<ItemMaster>) => {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+  }
+
+  const handleToggleEdit = (id: string) => {
+    setEditingIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   const handleRemoveRow = async (id: string) => {
@@ -75,6 +87,11 @@ export default function EstimatePriceList() {
       }
     }
     setRows((prev) => prev.filter((r) => r.id !== id))
+    setEditingIds((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
   }
 
   const handleSave = async () => {
@@ -96,6 +113,7 @@ export default function EstimatePriceList() {
       }))
       await upsertItemMasterRows(drafts)
       await load()
+      setEditingIds(new Set())
       alert('저장되었습니다.')
     } catch (e) {
       console.error(e)
@@ -168,8 +186,37 @@ export default function EstimatePriceList() {
               ) : (
                 filtered.map((row) => {
                   const marginRate = deriveMarginRate(row.default_execution_unit_cost, row.quoted_unit_price)
+                  const isEditing = editingIds.has(row.id)
+                  const marginCls = row.quoted_unit_price === 0 ? 'text-slate-300' : marginRate < 0 ? 'text-red-600' : 'text-green-700'
+
+                  if (!isEditing) {
+                    return (
+                      <tr key={row.id} className="hover:bg-slate-50">
+                        <td className="px-2 py-2 text-slate-600">{row.category}</td>
+                        <td className="px-2 py-2 min-w-[160px] font-medium text-slate-800">{row.name}</td>
+                        <td className="px-2 py-2 text-slate-500">{row.size || '-'}</td>
+                        <td className="px-2 py-2 text-center text-slate-500">{row.unit}</td>
+                        <td className="px-2 py-2 text-right text-slate-600 whitespace-nowrap">{formatKRW(row.default_execution_unit_cost)}</td>
+                        <td className="px-2 py-2 text-right font-semibold text-slate-800 whitespace-nowrap">{formatKRW(row.quoted_unit_price)}</td>
+                        <td className={`px-2 py-2 text-center text-xs font-medium ${marginCls}`}>
+                          {row.quoted_unit_price === 0 ? '-' : formatPercent(marginRate)}
+                        </td>
+                        <td className="px-2 py-1.5 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => handleToggleEdit(row.id)} title="수정" className="text-slate-300 hover:text-violet-500 transition-colors">
+                              <Pencil size={14} />
+                            </button>
+                            <button onClick={() => handleRemoveRow(row.id)} title="삭제" className="text-slate-300 hover:text-red-400 transition-colors">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  }
+
                   return (
-                    <tr key={row.id}>
+                    <tr key={row.id} className="bg-violet-50/40">
                       <td className="px-2 py-1.5">
                         <select value={row.category} onChange={(e) => handleChangeRow(row.id, { category: e.target.value as EstimateCategory })}
                           className={inputCls}>
@@ -200,15 +247,18 @@ export default function EstimatePriceList() {
                           onChange={(e) => handleChangeRow(row.id, { quoted_unit_price: Number(e.target.value) || 0 })}
                           className={`${inputCls} text-right`} />
                       </td>
-                      <td className={`px-2 py-2 text-center text-xs font-medium ${
-                        row.quoted_unit_price === 0 ? 'text-slate-300' : marginRate < 0 ? 'text-red-600' : 'text-green-700'
-                      }`}>
+                      <td className={`px-2 py-2 text-center text-xs font-medium ${marginCls}`}>
                         {row.quoted_unit_price === 0 ? '-' : formatPercent(marginRate)}
                       </td>
                       <td className="px-2 py-1.5 text-center">
-                        <button onClick={() => handleRemoveRow(row.id)} className="text-slate-300 hover:text-red-400 transition-colors">
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button onClick={() => handleToggleEdit(row.id)} title="수정 완료" className="text-violet-500 hover:text-violet-700 transition-colors">
+                            <Check size={15} />
+                          </button>
+                          <button onClick={() => handleRemoveRow(row.id)} title="삭제" className="text-slate-300 hover:text-red-400 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )

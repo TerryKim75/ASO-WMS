@@ -6,7 +6,7 @@ import { calculateItemQuotedTotal } from '../../lib/estimateCalculations'
 import { formatKRW } from '../../lib/format'
 
 export const ESTIMATE_CATEGORIES: EstimateCategory[] = [
-  '시스템 자재', '목재', '마감재', '바닥', '필름', '그래픽', '그래픽인건비', '전기/조명', '가구/비품',
+  '바닥', '시스템 자재', '목재', '마감재', '필름', '그래픽', '그래픽인건비', '전기/조명', '가구/비품',
   '영상장비', '운송', '인건비', '전시장비용', '현장비', '디자인', '관리비', '기타',
 ]
 
