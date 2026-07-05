@@ -79,7 +79,7 @@ function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineI
   <table>
     <thead><tr>
       <th style="width:32px">No.</th><th style="width:100px">구분</th><th>항목</th>
-      <th style="width:90px">사이즈</th><th style="width:60px">수량</th><th style="width:50px">단위</th><th style="width:120px">공급가</th>
+      <th style="width:90px">상세내용</th><th style="width:60px">수량</th><th style="width:50px">단위</th><th style="width:120px">공급가</th>
     </tr></thead>
     <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px">항목 없음</td></tr>'}</tbody>
   </table>
@@ -154,7 +154,7 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="text-left px-3 py-2.5 font-semibold text-slate-600 text-xs">구분</th>
                 <th className="text-left px-3 py-2.5 font-semibold text-slate-600 text-xs">항목</th>
-                <th className="text-left px-2 py-2.5 font-semibold text-slate-600 text-xs">사이즈</th>
+                <th className="text-left px-2 py-2.5 font-semibold text-slate-600 text-xs">상세내용</th>
                 <th className="text-center px-2 py-2.5 font-semibold text-slate-600 text-xs">수량</th>
                 <th className="text-center px-2 py-2.5 font-semibold text-slate-600 text-xs">단위</th>
                 <th className="text-right px-3 py-2.5 font-semibold text-slate-600 text-xs">공급가</th>

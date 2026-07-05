@@ -351,3 +351,19 @@ alter table estimates add column if not exists execution_total numeric not null 
 alter table estimates add column if not exists final_total_amount numeric not null default 0;
 alter table estimates add column if not exists expected_profit numeric not null default 0;
 alter table estimates add column if not exists final_profit_rate numeric not null default 0;
+
+-- ============================================================
+-- 카테고리 정리: "그래픽인건비"는 "그래픽"으로 통합, "전시장비용"/"디자인"은 삭제
+-- (기존 데이터는 이미 UPDATE로 이관 완료 — 이 블록은 체크 제약조건만 갱신한다)
+-- ============================================================
+alter table item_master drop constraint if exists item_master_category_check;
+alter table item_master add constraint item_master_category_check check (category in (
+  '시스템 자재','목재','마감재','바닥','필름','그래픽','전기/조명','가구/비품',
+  '영상장비','운송','인건비','현장비','관리비','기타'
+));
+
+alter table estimate_items drop constraint if exists estimate_items_category_check;
+alter table estimate_items add constraint estimate_items_category_check check (category in (
+  '시스템 자재','목재','마감재','바닥','필름','그래픽','전기/조명','가구/비품',
+  '영상장비','운송','인건비','현장비','관리비','기타'
+));

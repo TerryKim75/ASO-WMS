@@ -49,11 +49,13 @@ export default function EstimatePriceList() {
   useEffect(() => { load() }, [load])
 
   const filtered = useMemo(() => {
-    return rows.filter((r) => {
-      if (categoryFilter !== 'all' && r.category !== categoryFilter) return false
-      if (search.trim() && !r.name.toLowerCase().includes(search.trim().toLowerCase())) return false
-      return true
-    })
+    return rows
+      .filter((r) => {
+        if (categoryFilter !== 'all' && r.category !== categoryFilter) return false
+        if (search.trim() && !r.name.toLowerCase().includes(search.trim().toLowerCase())) return false
+        return true
+      })
+      .sort((a, b) => a.quoted_unit_price - b.quoted_unit_price)
   }, [rows, categoryFilter, search])
 
   const handleAddRow = () => {
@@ -117,7 +119,7 @@ export default function EstimatePriceList() {
       alert('저장되었습니다.')
     } catch (e) {
       console.error(e)
-      alert('저장에 실패했습니다. (동일 분류/품목명/사이즈 조합이 중복되지 않았는지 확인해주세요)')
+      alert('저장에 실패했습니다. (동일 분류/품목명/상세내용 조합이 중복되지 않았는지 확인해주세요)')
     } finally {
       setSaving(false)
     }
@@ -170,7 +172,7 @@ export default function EstimatePriceList() {
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="text-left px-2 py-2.5 font-semibold text-slate-600 text-xs w-36">분류</th>
                 <th className="text-left px-2 py-2.5 font-semibold text-slate-600 text-xs">품목</th>
-                <th className="text-left px-2 py-2.5 font-semibold text-slate-600 text-xs w-28">사이즈</th>
+                <th className="text-left px-2 py-2.5 font-semibold text-slate-600 text-xs w-28">상세내용</th>
                 <th className="text-center px-2 py-2.5 font-semibold text-slate-600 text-xs w-20">단위</th>
                 <th className="text-right px-2 py-2.5 font-semibold text-slate-600 text-xs w-32">실행단가</th>
                 <th className="text-right px-2 py-2.5 font-semibold text-slate-600 text-xs w-32">견적단가</th>
@@ -229,7 +231,7 @@ export default function EstimatePriceList() {
                       </td>
                       <td className="px-2 py-1.5">
                         <input value={row.size || ''} onChange={(e) => handleChangeRow(row.id, { size: e.target.value })}
-                          placeholder="사이즈" className={inputCls} />
+                          placeholder="상세내용" className={inputCls} />
                       </td>
                       <td className="px-2 py-1.5">
                         <select value={row.unit} onChange={(e) => handleChangeRow(row.id, { unit: e.target.value as EstimateUnit })}

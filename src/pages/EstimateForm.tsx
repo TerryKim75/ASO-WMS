@@ -246,7 +246,7 @@ export default function EstimateForm() {
       })
       alert('견적단가에 저장되었습니다.')
     } catch {
-      alert('저장에 실패했습니다. (동일한 이름/사이즈의 품목이 이미 있을 수 있습니다)')
+      alert('저장에 실패했습니다. (동일한 이름/상세내용의 품목이 이미 있을 수 있습니다)')
     }
   }
 

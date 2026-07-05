@@ -6,8 +6,8 @@ import { calculateItemQuotedTotal } from '../../lib/estimateCalculations'
 import { formatKRW } from '../../lib/format'
 
 export const ESTIMATE_CATEGORIES: EstimateCategory[] = [
-  '바닥', '시스템 자재', '목재', '마감재', '필름', '그래픽', '그래픽인건비', '전기/조명', '가구/비품',
-  '영상장비', '운송', '인건비', '전시장비용', '현장비', '디자인', '관리비', '기타',
+  '바닥', '시스템 자재', '목재', '마감재', '필름', '그래픽', '전기/조명', '가구/비품',
+  '영상장비', '운송', '인건비', '현장비', '관리비', '기타',
 ]
 
 interface Props {
@@ -70,7 +70,7 @@ export default function EstimateItemsAccordion({
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">
                         <th className="text-left px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">항목명</th>
-                        <th className="text-left px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">사이즈</th>
+                        <th className="text-left px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">상세내용</th>
                         <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">단위</th>
                         <th className="text-right px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">실행단가</th>
                         <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">수량</th>

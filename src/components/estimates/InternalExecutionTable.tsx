@@ -21,7 +21,7 @@ export default function InternalExecutionTable({ items }: Props) {
             <tr className="bg-slate-50 border-b border-slate-200">
               <th className="text-left px-3 py-2.5 font-semibold text-slate-600 text-xs">카테고리</th>
               <th className="text-left px-3 py-2.5 font-semibold text-slate-600 text-xs">항목명</th>
-              <th className="text-left px-3 py-2.5 font-semibold text-slate-600 text-xs">사이즈</th>
+              <th className="text-left px-3 py-2.5 font-semibold text-slate-600 text-xs">상세내용</th>
               <th className="text-center px-2 py-2.5 font-semibold text-slate-600 text-xs">수량</th>
               <th className="text-center px-2 py-2.5 font-semibold text-slate-600 text-xs">단위</th>
               <th className="text-right px-3 py-2.5 font-semibold text-slate-600 text-xs">실행단가</th>

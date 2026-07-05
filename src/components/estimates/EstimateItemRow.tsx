@@ -29,7 +29,7 @@ export default function EstimateItemRow({ item, onChange, onRemove, onSaveToMast
       </td>
       <td className="px-2 py-1.5 min-w-[130px]">
         <input value={item.size || ''} onChange={(e) => onChange({ size: e.target.value })}
-          placeholder="사이즈" className={inputCls} />
+          placeholder="상세내용" className={inputCls} />
       </td>
       <td className="px-2 py-1.5 min-w-[84px]">
         <select value={item.unit} onChange={(e) => onChange({ unit: e.target.value as EstimateUnit })}
