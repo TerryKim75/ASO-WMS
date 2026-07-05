@@ -63,8 +63,8 @@ function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineI
     .totals { margin-left: auto; width: 320px; }
     .totals-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
     .totals-row.final { font-size: 17px; font-weight: 700; border-top: 2px solid #1e293b; margin-top: 6px; padding-top: 8px; }
-    .scope-block { margin-top: 12px; }
-    .scope-section { margin-top: 8px; }
+    .scope-block { margin-top: 4px; }
+    .scope-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
     .scope-title { font-weight: 700; font-size: 12px; margin-bottom: 3px; }
     .scope-body { white-space: pre-wrap; font-size: 11px; color: #475569; line-height: 1.4; }
     .footer-note { margin-top: 10px; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; white-space: pre-wrap; font-size: 10px; color: #64748b; line-height: 1.4; }
@@ -104,8 +104,10 @@ function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineI
     <div class="totals-row final"><span>최종 견적금액</span><span>${formatKRW(summary.finalTotalAmount)}</span></div>
   </div>
   <div class="scope-block">
-    ${header.included_scope ? `<div class="scope-section"><div class="scope-title">포함 사항</div><div class="scope-body">${header.included_scope}</div></div>` : ''}
-    ${header.excluded_scope ? `<div class="scope-section"><div class="scope-title">불포함 사항</div><div class="scope-body">${header.excluded_scope}</div></div>` : ''}
+    <div class="scope-columns">
+      ${header.included_scope ? `<div><div class="scope-title">포함 사항</div><div class="scope-body">${header.included_scope}</div></div>` : '<div></div>'}
+      ${header.excluded_scope ? `<div><div class="scope-title">불포함 사항</div><div class="scope-body">${header.excluded_scope}</div></div>` : '<div></div>'}
+    </div>
     ${header.customer_notes ? `<div class="footer-note">${header.customer_notes}</div>` : ''}
   </div>
   </body></html>`
@@ -217,19 +219,21 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
           </div>
         </div>
 
-        <div className="space-y-2.5">
-          {header.included_scope && (
-            <div>
-              <p className="font-semibold text-xs text-slate-700 mb-0.5">포함 사항</p>
-              <p className="text-xs text-slate-500 whitespace-pre-wrap leading-snug">{header.included_scope}</p>
-            </div>
-          )}
-          {header.excluded_scope && (
-            <div>
-              <p className="font-semibold text-xs text-slate-700 mb-0.5">불포함 사항</p>
-              <p className="text-xs text-slate-500 whitespace-pre-wrap leading-snug">{header.excluded_scope}</p>
-            </div>
-          )}
+        <div className="space-y-2.5 -mt-3">
+          <div className="grid grid-cols-2 gap-x-6">
+            {header.included_scope && (
+              <div>
+                <p className="font-semibold text-xs text-slate-700 mb-0.5">포함 사항</p>
+                <p className="text-xs text-slate-500 whitespace-pre-wrap leading-snug">{header.included_scope}</p>
+              </div>
+            )}
+            {header.excluded_scope && (
+              <div>
+                <p className="font-semibold text-xs text-slate-700 mb-0.5">불포함 사항</p>
+                <p className="text-xs text-slate-500 whitespace-pre-wrap leading-snug">{header.excluded_scope}</p>
+              </div>
+            )}
+          </div>
           {header.customer_notes && (
             <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
               <p className="text-xs text-slate-500 whitespace-pre-wrap leading-snug">{header.customer_notes}</p>
