@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Save, Trash2, Pencil, Check, ArrowLeft } from 'lucide-react'
+import { Plus, Save, Trash2, Pencil, Check, ArrowLeft, GripVertical } from 'lucide-react'
 import {
   fetchItemMasterForAdmin, upsertItemMasterRows, deleteItemMasterRow, type ItemMasterDraft,
 } from '../lib/estimateActions'
@@ -36,6 +36,8 @@ export default function EstimatePriceList() {
   const [categoryFilter, setCategoryFilter] = useState<EstimateCategory | 'all'>('all')
   const [search, setSearch] = useState('')
   const [editingIds, setEditingIds] = useState<Set<string>>(new Set())
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -82,6 +84,29 @@ export default function EstimatePriceList() {
       else next.add(id)
       return next
     })
+  }
+
+  // 같은 분류 안에서만 순서 변경을 허용한다 (다른 분류 위에 놓으면 무시).
+  const handleDropRow = (targetId: string) => {
+    const sourceId = draggedId
+    setDraggedId(null)
+    setDragOverId(null)
+    if (!sourceId || sourceId === targetId) return
+
+    const dragged = rows.find((r) => r.id === sourceId)
+    const target = rows.find((r) => r.id === targetId)
+    if (!dragged || !target || dragged.category !== target.category) return
+
+    const categoryItems = rows
+      .filter((r) => r.category === dragged.category)
+      .sort((a, b) => a.sort_order - b.sort_order)
+    const fromIndex = categoryItems.findIndex((r) => r.id === sourceId)
+    const toIndex = categoryItems.findIndex((r) => r.id === targetId)
+    categoryItems.splice(fromIndex, 1)
+    categoryItems.splice(toIndex, 0, dragged)
+
+    const newSortOrder = new Map(categoryItems.map((r, i) => [r.id, i]))
+    setRows((prev) => prev.map((r) => (newSortOrder.has(r.id) ? { ...r, sort_order: newSortOrder.get(r.id)! } : r)))
   }
 
   const handleRemoveRow = async (id: string) => {
@@ -180,6 +205,7 @@ export default function EstimatePriceList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="w-6" />
                 <th className="text-left px-2 py-2.5 font-semibold text-slate-600 text-xs w-36">분류</th>
                 <th className="text-left px-2 py-2.5 font-semibold text-slate-600 text-xs">품목</th>
                 <th className="text-left px-2 py-2.5 font-semibold text-slate-600 text-xs w-28">상세내용</th>
@@ -192,9 +218,9 @@ export default function EstimatePriceList() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={8} className="px-3 py-12 text-center text-slate-400">불러오는 중...</td></tr>
+                <tr><td colSpan={9} className="px-3 py-12 text-center text-slate-400">불러오는 중...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="px-3 py-12 text-center text-slate-400">등록된 품목이 없습니다.</td></tr>
+                <tr><td colSpan={9} className="px-3 py-12 text-center text-slate-400">등록된 품목이 없습니다.</td></tr>
               ) : (
                 filtered.map((row) => {
                   const marginRate = deriveMarginRate(row.default_execution_unit_cost, row.quoted_unit_price)
@@ -203,7 +229,18 @@ export default function EstimatePriceList() {
 
                   if (!isEditing) {
                     return (
-                      <tr key={row.id} className="hover:bg-slate-50">
+                      <tr key={row.id}
+                        draggable
+                        onDragStart={() => setDraggedId(row.id)}
+                        onDragOver={(e) => { e.preventDefault(); if (dragOverId !== row.id) setDragOverId(row.id) }}
+                        onDragLeave={() => setDragOverId((prev) => (prev === row.id ? null : prev))}
+                        onDrop={(e) => { e.preventDefault(); handleDropRow(row.id) }}
+                        onDragEnd={() => { setDraggedId(null); setDragOverId(null) }}
+                        className={`cursor-grab active:cursor-grabbing hover:bg-slate-50 ${
+                          dragOverId === row.id ? 'border-t-2 border-violet-500' : ''
+                        } ${draggedId === row.id ? 'opacity-40' : ''}`}
+                      >
+                        <td className="px-1 py-2 text-slate-300 w-6"><GripVertical size={14} /></td>
                         <td className="px-2 py-2 text-slate-600">{row.category}</td>
                         <td className="px-2 py-2 min-w-[160px] font-medium text-slate-800">{row.name}</td>
                         <td className="px-2 py-2 text-slate-500">{row.size || '-'}</td>
@@ -229,6 +266,7 @@ export default function EstimatePriceList() {
 
                   return (
                     <tr key={row.id} className="bg-violet-50/40">
+                      <td className="px-1 py-1.5" />
                       <td className="px-2 py-1.5">
                         <select value={row.category} onChange={(e) => handleChangeRow(row.id, { category: e.target.value as EstimateCategory })}
                           className={inputCls}>
