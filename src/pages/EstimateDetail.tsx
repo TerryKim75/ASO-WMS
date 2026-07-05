@@ -1,77 +1,34 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Edit2, AlertTriangle, ArrowLeft } from 'lucide-react'
-import {
-  fetchEstimateFull, fetchPricingPolicies, setEstimateReviewRequired, setEstimateStatus, type EstimateFull,
-} from '../lib/estimateActions'
-import { calculateEstimateTotals, type MarginPolicy } from '../lib/estimateCalculations'
+import { setEstimateReviewRequired, setEstimateStatus } from '../lib/estimateActions'
+import { useEstimateWithTotals } from '../lib/useEstimateWithTotals'
 import { toCustomerLineItems, toCustomerSummary } from '../lib/estimateCustomerView'
 import InternalExecutionTable from '../components/estimates/InternalExecutionTable'
 import CustomerEstimateView from '../components/estimates/CustomerEstimateView'
 import EstimateSummaryPanel from '../components/estimates/EstimateSummaryPanel'
 import { ESTIMATE_STATUS_COLORS, CLIENT_TYPE_COLORS } from './Estimates'
-import type { EstimateStatus, PricingPolicy } from '../types'
+import type { EstimateStatus } from '../types'
 
 type ViewMode = 'internal' | 'customer'
 
 export default function EstimateDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [full, setFull] = useState<EstimateFull | null>(null)
-  const [pricingPolicies, setPricingPolicies] = useState<PricingPolicy[]>([])
-  const [loading, setLoading] = useState(true)
+  const { full, totals, overheadLabel, loading, reload } = useEstimateWithTotals(id)
   const [view, setView] = useState<ViewMode>('internal')
-
-  const load = useCallback(async () => {
-    if (!id) return
-    setLoading(true)
-    try {
-      const [data, policies] = await Promise.all([fetchEstimateFull(id), fetchPricingPolicies()])
-      setFull(data)
-      setPricingPolicies(policies)
-    } finally {
-      setLoading(false)
-    }
-  }, [id])
-
-  useEffect(() => { load() }, [load])
 
   const handleToggleReview = async () => {
     if (!full) return
     await setEstimateReviewRequired(full.estimate.id, !full.estimate.review_required)
-    load()
+    reload()
   }
 
   const handleStatusChange = async (status: EstimateStatus) => {
     if (!full) return
     await setEstimateStatus(full.estimate.id, status)
-    load()
+    reload()
   }
-
-  const overallPolicy: MarginPolicy = useMemo(() => {
-    if (!full) return { default_margin_rate: 0, min_margin_rate: 0, max_margin_rate: 1 }
-    const p = pricingPolicies.find((p) => p.client_type === full.estimate.client_type && p.category === 'OVERALL')
-    return p || { default_margin_rate: 0, min_margin_rate: 0, max_margin_rate: 1 }
-  }, [pricingPolicies, full])
-
-  const overheadRate = full?.adjustments.find((a) => a.adjustment_type === 'overhead')?.value ?? 0
-  const overheadLabel = full?.adjustments.find((a) => a.adjustment_type === 'overhead')?.label || '간접비'
-  const discountAdj = full?.adjustments.find((a) => a.adjustment_type === 'discount')
-
-  const totals = useMemo(() => {
-    if (!full) return null
-    return calculateEstimateTotals({
-      items: full.items.map((i) => ({
-        execution_unit_cost: i.execution_unit_cost, quantity: i.quantity, quoted_unit_price: i.quoted_unit_price,
-      })),
-      overheadRate,
-      selectedRiskRates: full.risks.map((r) => r.rate),
-      discountType: discountAdj?.value_type || 'rate',
-      discountValue: discountAdj?.value || 0,
-      vatRate: full.estimate.vat_rate,
-      overallPolicy,
-    })
-  }, [full, overheadRate, discountAdj, overallPolicy])
 
   if (loading || !full || !totals) {
     return <div className="p-4 md:p-6 text-center text-slate-400 py-20">불러오는 중...</div>

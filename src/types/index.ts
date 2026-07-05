@@ -162,6 +162,10 @@ export interface Estimate {
   payment_terms?: string
   included_scope?: string
   excluded_scope?: string
+  execution_total: number
+  final_total_amount: number
+  expected_profit: number
+  final_profit_rate: number
   created_at: string
   updated_at: string
 }

@@ -342,3 +342,12 @@ alter table estimate_items drop constraint if exists estimate_items_unit_check;
 alter table estimate_items add constraint estimate_items_unit_check check (unit in (
   '개','회배','식','세트','회','장','미터','대','시간','KW','모듈'
 ));
+
+-- ============================================================
+-- 견적 목록에서 실행가/최종금액/이윤율/예상이익을 바로 보여주기 위한 요약값 저장
+-- (매 저장 시 계산되어 채워짐 — 목록 화면에서 견적마다 품목을 다시 조회하지 않도록 비정규화)
+-- ============================================================
+alter table estimates add column if not exists execution_total numeric not null default 0;
+alter table estimates add column if not exists final_total_amount numeric not null default 0;
+alter table estimates add column if not exists expected_profit numeric not null default 0;
+alter table estimates add column if not exists final_profit_rate numeric not null default 0;

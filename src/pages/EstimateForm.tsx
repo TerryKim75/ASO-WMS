@@ -278,6 +278,10 @@ export default function EstimateForm() {
           payment_terms: info.payment_terms || undefined,
           included_scope: info.included_scope || undefined,
           excluded_scope: info.excluded_scope || undefined,
+          execution_total: totals.executionTotal,
+          final_total_amount: totals.finalTotalAmount,
+          expected_profit: totals.expectedProfit,
+          final_profit_rate: totals.finalProfitRate,
         },
         items: items.map((i) => {
           const executionTotal = i.execution_unit_cost * i.quantity

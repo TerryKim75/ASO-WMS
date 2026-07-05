@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ChevronRight, AlertTriangle } from 'lucide-react'
 import { fetchEstimateList } from '../lib/estimateActions'
+import { formatKRW, formatPercent } from '../lib/format'
+import EstimateDetailModal from '../components/estimates/EstimateDetailModal'
 import type { Estimate, EstimateStatus, ClientType } from '../types'
 
 export const ESTIMATE_STATUS_COLORS: Record<EstimateStatus, string> = {
@@ -28,6 +30,7 @@ export default function Estimates() {
   const [estimates, setEstimates] = useState<Estimate[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<EstimateStatus | 'all'>('all')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -86,7 +89,7 @@ export default function Estimates() {
         ) : (
           filtered.map((estimate) => (
             <div key={estimate.id}
-              onClick={() => navigate(`/estimates/${estimate.id}`)}
+              onClick={() => setSelectedId(estimate.id)}
               className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm active:bg-violet-50 transition-colors cursor-pointer">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -113,6 +116,26 @@ export default function Estimates() {
                 </div>
                 <ChevronRight size={18} className="text-slate-300 flex-shrink-0" />
               </div>
+              <div className="grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-100">
+                <div className="text-center">
+                  <p className="text-xs text-slate-400">실행가</p>
+                  <p className="text-xs font-bold text-slate-600">{formatKRW(estimate.execution_total)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-slate-400">최종금액</p>
+                  <p className="text-xs font-bold text-slate-800">{formatKRW(estimate.final_total_amount)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-slate-400">수익률</p>
+                  <p className={`text-xs font-bold ${estimate.final_profit_rate < 0 ? 'text-red-600' : 'text-green-700'}`}>
+                    {formatPercent(estimate.final_profit_rate)}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-slate-400">최종이윤</p>
+                  <p className="text-xs font-bold text-green-700">{formatKRW(estimate.expected_profit)}</p>
+                </div>
+              </div>
             </div>
           ))
         )}
@@ -127,41 +150,45 @@ export default function Estimates() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="text-left px-5 py-3.5 font-semibold text-slate-600">견적번호</th>
-                <th className="text-left px-4 py-3.5 font-semibold text-slate-600">고객유형</th>
-                <th className="text-left px-4 py-3.5 font-semibold text-slate-600">고객명</th>
-                <th className="text-left px-4 py-3.5 font-semibold text-slate-600">전시회</th>
-                <th className="text-left px-4 py-3.5 font-semibold text-slate-600">담당PM</th>
-                <th className="text-left px-4 py-3.5 font-semibold text-slate-600">작성일</th>
-                <th className="text-left px-4 py-3.5 font-semibold text-slate-600">유효기간</th>
+                <th className="text-left px-5 py-3.5 font-semibold text-slate-600">기본정보</th>
+                <th className="text-right px-4 py-3.5 font-semibold text-slate-600 whitespace-nowrap">실행가</th>
+                <th className="text-right px-4 py-3.5 font-semibold text-slate-600 whitespace-nowrap">견적총금액</th>
+                <th className="text-right px-4 py-3.5 font-semibold text-slate-600 whitespace-nowrap">수익률</th>
+                <th className="text-right px-4 py-3.5 font-semibold text-slate-600 whitespace-nowrap">최종이윤</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-slate-600">상태</th>
                 <th className="px-4 py-3.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-400">불러오는 중...</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400">불러오는 중...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-400">견적서가 없습니다.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-400">견적서가 없습니다.</td></tr>
               ) : (
                 filtered.map((estimate) => (
-                  <tr key={estimate.id} onClick={() => navigate(`/estimates/${estimate.id}`)}
+                  <tr key={estimate.id} onClick={() => setSelectedId(estimate.id)}
                     className="hover:bg-violet-50 transition-colors cursor-pointer group">
-                    <td className="px-5 py-3.5 font-medium text-slate-800 whitespace-nowrap">{estimate.estimate_number}</td>
-                    <td className="px-4 py-3.5">
-                      <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${CLIENT_TYPE_COLORS[estimate.client_type]}`}>
-                        {estimate.client_type}
-                      </span>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-slate-800 whitespace-nowrap">{estimate.client_name}</span>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${CLIENT_TYPE_COLORS[estimate.client_type]}`}>
+                          {estimate.client_type}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-0.5 text-xs text-slate-400">
+                        <span>{estimate.estimate_number}</span>
+                        {estimate.exhibition_name && <span>· {estimate.exhibition_name}</span>}
+                        {estimate.pm && <span>· {estimate.pm}</span>}
+                      </div>
                     </td>
-                    <td className="px-4 py-3.5 text-slate-700 font-medium whitespace-nowrap">{estimate.client_name}</td>
-                    <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
-                      {estimate.exhibition_name || <span className="text-slate-300">-</span>}
+                    <td className="px-4 py-3.5 text-right text-slate-600 whitespace-nowrap">{formatKRW(estimate.execution_total)}</td>
+                    <td className="px-4 py-3.5 text-right font-bold text-slate-800 whitespace-nowrap">{formatKRW(estimate.final_total_amount)}</td>
+                    <td className={`px-4 py-3.5 text-right font-semibold whitespace-nowrap ${
+                      estimate.final_profit_rate < 0 ? 'text-red-600' : 'text-green-700'
+                    }`}>
+                      {formatPercent(estimate.final_profit_rate)}
                     </td>
-                    <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
-                      {estimate.pm || <span className="text-slate-300">-</span>}
-                    </td>
-                    <td className="px-4 py-3.5 text-slate-500 text-xs whitespace-nowrap">{formatDate(estimate.created_at)}</td>
-                    <td className="px-4 py-3.5 text-slate-500 text-xs whitespace-nowrap">{formatDate(estimate.valid_until)}</td>
+                    <td className="px-4 py-3.5 text-right font-semibold text-green-700 whitespace-nowrap">{formatKRW(estimate.expected_profit)}</td>
                     <td className="px-4 py-3.5 text-center">
                       <div className="flex items-center justify-center gap-1.5 flex-wrap">
                         <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${ESTIMATE_STATUS_COLORS[estimate.status]}`}>
@@ -187,6 +214,10 @@ export default function Estimates() {
           <div className="px-5 py-3 border-t border-slate-100 text-xs text-slate-400">총 {filtered.length}건</div>
         )}
       </div>
+
+      {selectedId && (
+        <EstimateDetailModal id={selectedId} onClose={() => { setSelectedId(null); load() }} />
+      )}
     </div>
   )
 }
