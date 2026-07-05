@@ -35,7 +35,9 @@ export default function EstimateItemsAccordion({
   return (
     <div className="space-y-2">
       {ESTIMATE_CATEGORIES.map((category) => {
-        const categoryItems = items.filter((i) => i.category === category)
+        const categoryItems = items
+          .filter((i) => i.category === category)
+          .sort((a, b) => a.quoted_unit_price - b.quoted_unit_price)
         const isExpanded = expanded.has(category)
         const selectedCount = categoryItems.filter((i) => i.quantity > 0).length
         const categoryQuoted = categoryItems.reduce((sum, i) => {

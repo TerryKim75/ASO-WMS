@@ -55,7 +55,11 @@ export default function EstimatePriceList() {
         if (search.trim() && !r.name.toLowerCase().includes(search.trim().toLowerCase())) return false
         return true
       })
-      .sort((a, b) => a.quoted_unit_price - b.quoted_unit_price)
+      .sort((a, b) => {
+        const catDiff = ESTIMATE_CATEGORIES.indexOf(a.category) - ESTIMATE_CATEGORIES.indexOf(b.category)
+        if (catDiff !== 0) return catDiff
+        return a.quoted_unit_price - b.quoted_unit_price
+      })
   }, [rows, categoryFilter, search])
 
   const handleAddRow = () => {
