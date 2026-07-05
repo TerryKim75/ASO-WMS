@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, Save, Trash2, Pencil, Check } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Save, Trash2, Pencil, Check, ArrowLeft } from 'lucide-react'
 import {
   fetchItemMasterForAdmin, upsertItemMasterRows, deleteItemMasterRow, type ItemMasterDraft,
 } from '../lib/estimateActions'
@@ -27,6 +28,7 @@ const inputCls =
   'w-full border border-slate-200 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-violet-400'
 
 export default function EstimatePriceList() {
+  const navigate = useNavigate()
   const [rows, setRows] = useState<ItemMaster[]>([])
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -58,7 +60,7 @@ export default function EstimatePriceList() {
       .sort((a, b) => {
         const catDiff = ESTIMATE_CATEGORIES.indexOf(a.category) - ESTIMATE_CATEGORIES.indexOf(b.category)
         if (catDiff !== 0) return catDiff
-        return a.quoted_unit_price - b.quoted_unit_price
+        return a.sort_order - b.sort_order
       })
   }, [rows, categoryFilter, search])
 
@@ -133,6 +135,10 @@ export default function EstimatePriceList() {
     <div className="p-4 md:p-6 space-y-4 md:space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
+          <button onClick={() => navigate('/estimates')}
+            className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 mb-2">
+            <ArrowLeft size={13} />견적서로 돌아가기
+          </button>
           <h1 className="text-xl md:text-2xl font-bold text-slate-800">견적단가</h1>
           <p className="text-slate-500 text-sm mt-0.5">분류별 실행단가·견적단가 관리 — 견적서 작성 시 자동 적용됩니다</p>
         </div>
