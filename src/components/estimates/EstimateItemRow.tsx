@@ -22,40 +22,40 @@ export default function EstimateItemRow({ item, onChange, onRemove, onSaveToMast
 
   return (
     <tr className={item.quantity > 0 ? 'bg-white' : 'bg-slate-50/50'}>
-      <td className="px-2 py-1.5 min-w-[160px]">
+      <td className="px-2 py-1.5 min-w-[240px]">
         <input value={item.name} onChange={(e) => onChange({ name: e.target.value })}
           placeholder="항목명" className={inputCls} />
         {item.is_custom && <span className="text-[10px] text-violet-500 font-medium ml-0.5">추가옵션</span>}
       </td>
-      <td className="px-2 py-1.5 min-w-[100px]">
+      <td className="px-2 py-1.5 min-w-[130px]">
         <input value={item.size || ''} onChange={(e) => onChange({ size: e.target.value })}
           placeholder="사이즈" className={inputCls} />
       </td>
-      <td className="px-2 py-1.5 w-20">
+      <td className="px-2 py-1.5 min-w-[84px]">
         <select value={item.unit} onChange={(e) => onChange({ unit: e.target.value as EstimateUnit })}
           className={`${inputCls} text-center`}>
           {ESTIMATE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
         </select>
       </td>
-      <td className="px-2 py-1.5 w-28">
+      <td className="px-2 py-1.5 min-w-[130px]">
         <input type="number" min="0" value={item.execution_unit_cost}
           onChange={(e) => onChange({ execution_unit_cost: Number(e.target.value) || 0 })}
           className={`${inputCls} text-right`} />
       </td>
-      <td className="px-2 py-1.5 w-20">
+      <td className="px-2 py-1.5 min-w-[90px]">
         <input type="number" min="0" value={item.quantity}
           onChange={(e) => onChange({ quantity: Number(e.target.value) || 0 })}
           className={`${inputCls} text-center font-semibold`} />
       </td>
-      <td className="px-2 py-1.5 w-28">
+      <td className="px-2 py-1.5 min-w-[130px]">
         <input type="number" min="0" value={item.quoted_unit_price}
           onChange={(e) => onChange({ quoted_unit_price: Number(e.target.value) || 0 })}
           className={`${inputCls} text-right`} />
       </td>
-      <td className="px-3 py-2 text-right text-slate-600 whitespace-nowrap w-32">
+      <td className="px-3 py-2 text-right text-slate-600 whitespace-nowrap min-w-[130px]">
         {formatKRW(executionTotal)}
       </td>
-      <td className="px-3 py-2 text-right font-semibold text-slate-800 whitespace-nowrap w-32">
+      <td className="px-3 py-2 text-right font-semibold text-slate-800 whitespace-nowrap min-w-[130px]">
         {formatKRW(quotedTotal)}
       </td>
       <td className={`px-2 py-2 text-center text-xs font-medium whitespace-nowrap ${

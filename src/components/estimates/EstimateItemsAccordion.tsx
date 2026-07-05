@@ -69,16 +69,16 @@ export default function EstimateItemsAccordion({
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="text-left px-2 py-2 font-semibold text-slate-500 text-xs">항목명</th>
-                        <th className="text-left px-2 py-2 font-semibold text-slate-500 text-xs">사이즈</th>
-                        <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs">단위</th>
-                        <th className="text-right px-2 py-2 font-semibold text-slate-500 text-xs">실행단가</th>
-                        <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs">수량</th>
-                        <th className="text-right px-2 py-2 font-semibold text-slate-500 text-xs">견적단가</th>
-                        <th className="text-right px-3 py-2 font-semibold text-slate-500 text-xs">실행가</th>
-                        <th className="text-right px-3 py-2 font-semibold text-slate-500 text-xs">판매가</th>
-                        <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs">이윤율</th>
-                        <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs">고객노출</th>
+                        <th className="text-left px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">항목명</th>
+                        <th className="text-left px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">사이즈</th>
+                        <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">단위</th>
+                        <th className="text-right px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">실행단가</th>
+                        <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">수량</th>
+                        <th className="text-right px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">견적단가</th>
+                        <th className="text-right px-3 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">실행가</th>
+                        <th className="text-right px-3 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">판매가</th>
+                        <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">이윤율</th>
+                        <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs whitespace-nowrap">고객노출</th>
                         <th className="w-10" />
                       </tr>
                     </thead>

@@ -135,13 +135,9 @@ export default function EstimateDetail() {
       </div>
 
       {view === 'internal' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
-          <div className="lg:col-span-2">
-            <InternalExecutionTable items={items} />
-          </div>
-          <div className="lg:col-span-1">
-            <EstimateSummaryPanel totals={totals} overheadLabel={overheadLabel} />
-          </div>
+        <div className="space-y-4 md:space-y-5">
+          <InternalExecutionTable items={items} />
+          <EstimateSummaryPanel totals={totals} overheadLabel={overheadLabel} />
         </div>
       ) : (
         <CustomerEstimateView

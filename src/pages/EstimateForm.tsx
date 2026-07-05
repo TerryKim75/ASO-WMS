@@ -336,9 +336,8 @@ export default function EstimateForm() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
-        <div className="lg:col-span-2 space-y-4 md:space-y-5">
-          {/* 기본 정보 */}
+      <div className="space-y-4 md:space-y-5">
+        {/* 기본 정보 */}
           <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-5">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">견적 기본 정보</p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -471,11 +470,8 @@ export default function EstimateForm() {
                 rows={2} className={`${inputCls} w-full resize-none`} />
             </div>
           </div>
-        </div>
 
-        <div className="lg:col-span-1">
-          <EstimateSummaryPanel totals={totals} overheadLabel={overheadLabel} />
-        </div>
+        <EstimateSummaryPanel totals={totals} overheadLabel={overheadLabel} />
       </div>
     </div>
   )
