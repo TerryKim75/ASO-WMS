@@ -132,16 +132,20 @@ export async function setEstimateStatus(id: string, status: Estimate['status']) 
 export async function saveCustomItemToMaster(item: {
   category: ItemMaster['category']
   name: string
+  size?: string
   description?: string
-  unit: string
+  unit: ItemMaster['unit']
   execution_unit_cost: number
+  quoted_unit_price: number
 }) {
   const { error } = await supabase.from('item_master').insert({
     category: item.category,
     name: item.name,
+    size: item.size ?? null,
     description: item.description ?? null,
     unit: item.unit,
     default_execution_unit_cost: item.execution_unit_cost,
+    quoted_unit_price: item.quoted_unit_price,
   })
   if (error) throw error
 }
@@ -155,6 +159,30 @@ export async function fetchItemMaster(): Promise<ItemMaster[]> {
     .order('sort_order')
   if (error) throw error
   return (data || []) as ItemMaster[]
+}
+
+// 견적단가 관리 화면용 — 비활성 품목도 함께 보여준다.
+export async function fetchItemMasterForAdmin(): Promise<ItemMaster[]> {
+  const { data, error } = await supabase
+    .from('item_master')
+    .select('*')
+    .order('category')
+    .order('sort_order')
+  if (error) throw error
+  return (data || []) as ItemMaster[]
+}
+
+export type ItemMasterDraft = Omit<ItemMaster, 'id' | 'created_at'> & { id?: string }
+
+export async function upsertItemMasterRows(rows: ItemMasterDraft[]): Promise<void> {
+  if (rows.length === 0) return
+  const { error } = await supabase.from('item_master').upsert(rows)
+  if (error) throw error
+}
+
+export async function deleteItemMasterRow(id: string) {
+  const { error } = await supabase.from('item_master').delete().eq('id', id)
+  if (error) throw error
 }
 
 export async function fetchPricingPolicies(): Promise<PricingPolicy[]> {

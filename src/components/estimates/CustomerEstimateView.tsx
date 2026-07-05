@@ -34,6 +34,7 @@ function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineI
       <td style="text-align:center">${i + 1}</td>
       <td>${item.category}</td>
       <td>${item.name}${item.description ? `<div style="color:#94a3b8;font-size:11px">${item.description}</div>` : ''}</td>
+      <td style="text-align:center">${item.size || '-'}</td>
       <td style="text-align:center">${item.quantity.toLocaleString()}</td>
       <td style="text-align:center">${item.unit}</td>
       <td style="text-align:right;font-weight:600">${formatKRW(item.quoted_amount)}</td>
@@ -78,9 +79,9 @@ function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineI
   <table>
     <thead><tr>
       <th style="width:32px">No.</th><th style="width:100px">구분</th><th>항목</th>
-      <th style="width:60px">수량</th><th style="width:50px">단위</th><th style="width:120px">공급가</th>
+      <th style="width:90px">사이즈</th><th style="width:60px">수량</th><th style="width:50px">단위</th><th style="width:120px">공급가</th>
     </tr></thead>
-    <tbody>${rows || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px">항목 없음</td></tr>'}</tbody>
+    <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px">항목 없음</td></tr>'}</tbody>
   </table>
   <div class="totals">
     <div class="totals-row"><span>공급가</span><span>${formatKRW(summary.preDiscountSupply)}</span></div>
@@ -153,6 +154,7 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="text-left px-3 py-2.5 font-semibold text-slate-600 text-xs">구분</th>
                 <th className="text-left px-3 py-2.5 font-semibold text-slate-600 text-xs">항목</th>
+                <th className="text-left px-2 py-2.5 font-semibold text-slate-600 text-xs">사이즈</th>
                 <th className="text-center px-2 py-2.5 font-semibold text-slate-600 text-xs">수량</th>
                 <th className="text-center px-2 py-2.5 font-semibold text-slate-600 text-xs">단위</th>
                 <th className="text-right px-3 py-2.5 font-semibold text-slate-600 text-xs">공급가</th>
@@ -160,7 +162,7 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
             </thead>
             <tbody className="divide-y divide-slate-100">
               {lineItems.length === 0 ? (
-                <tr><td colSpan={5} className="px-3 py-10 text-center text-slate-400">항목이 없습니다.</td></tr>
+                <tr><td colSpan={6} className="px-3 py-10 text-center text-slate-400">항목이 없습니다.</td></tr>
               ) : (
                 categories.flatMap((category) =>
                   lineItems.filter((i) => i.category === category).map((item) => (
@@ -170,6 +172,7 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
                         {item.name}
                         {item.description && <p className="text-xs text-slate-400">{item.description}</p>}
                       </td>
+                      <td className="px-2 py-2 text-slate-500 whitespace-nowrap">{item.size || '-'}</td>
                       <td className="px-2 py-2 text-center">{item.quantity.toLocaleString()}</td>
                       <td className="px-2 py-2 text-center text-slate-500">{item.unit}</td>
                       <td className="px-3 py-2 text-right font-semibold text-slate-800 whitespace-nowrap">{formatKRW(item.quoted_amount)}</td>

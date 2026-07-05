@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest'
 import {
   calculateItemExecutionTotal,
   calculateItemQuotedAmount,
+  calculateItemQuotedTotal,
+  deriveMarginRate,
   calculateEstimateExecutionTotal,
+  calculateEstimateQuotedTotal,
   calculateOverheadAmount,
   calculateRiskAmount,
   calculateDiscountAmount,
@@ -63,6 +66,32 @@ describe('calculateEstimateExecutionTotal', () => {
   })
 })
 
+describe('calculateItemQuotedTotal / deriveMarginRate (견적단가 직접입력 모델)', () => {
+  it('multiplies the master-defined quoted unit price by quantity directly (no margin formula)', () => {
+    expect(calculateItemQuotedTotal(15_000, 4)).toBe(60_000)
+  })
+
+  it('derives margin rate backward from execution vs quoted totals', () => {
+    // 실행가 60,000 / 견적가 100,000 → 이윤율 40%
+    expect(deriveMarginRate(60_000, 100_000)).toBeCloseTo(0.4, 5)
+  })
+
+  it('guards divide-by-zero when quoted total is 0', () => {
+    expect(deriveMarginRate(0, 0)).toBe(0)
+  })
+})
+
+describe('calculateEstimateQuotedTotal', () => {
+  it('sums quoted_unit_price * quantity only for rows with quantity > 0', () => {
+    const items = [
+      { quantity: 2, quoted_unit_price: 10_000 },
+      { quantity: 0, quoted_unit_price: 999_999 }, // excluded
+      { quantity: 1, quoted_unit_price: 5_000 },
+    ]
+    expect(calculateEstimateQuotedTotal(items)).toBe(25_000)
+  })
+})
+
 describe('overhead / risk / discount chain', () => {
   it('computes overhead as a rate of execution total', () => {
     expect(calculateOverheadAmount(10_000_000, 0.05)).toBe(500_000)
@@ -117,7 +146,8 @@ describe('calculateEstimateTotals (orchestrator)', () => {
 
   it('runs the full chain and flags a discount that pushes margin below minimum', () => {
     const totals = calculateEstimateTotals({
-      items: [{ execution_unit_cost: 100_000, quantity: 10, margin_rate: 0.45 }], // execution total 1,000,000
+      // 실행단가 100,000 x 10 = 실행가 1,000,000 / 견적단가 181,818.18 x 10 ≒ 견적가 1,818,181.82 (이윤율 45%에 해당하는 값)
+      items: [{ execution_unit_cost: 100_000, quantity: 10, quoted_unit_price: 181_818.18 }],
       overheadRate: 0.05,
       selectedRiskRates: [],
       discountType: 'rate',
@@ -126,20 +156,20 @@ describe('calculateEstimateTotals (orchestrator)', () => {
       overallPolicy: 참가사용정책,
     })
 
-    // quotedTotal = 1,000,000 / (1-0.45) = 1,818,181.82; + overhead(50,000) = preDiscountSupply
     expect(totals.executionTotal).toBe(1_000_000)
-    expect(totals.quotedTotal).toBeCloseTo(1_818_181.82, 1)
+    expect(totals.quotedTotal).toBeCloseTo(1_818_181.8, 0)
     expect(totals.overheadAmount).toBe(50_000)
-    expect(totals.preDiscountSupply).toBeCloseTo(1_868_181.82, 1)
-    expect(totals.discountAmount).toBeCloseTo(560_454.55, 1)
-    expect(totals.finalSupplyAmount).toBeCloseTo(1_307_727.27, 1)
+    expect(totals.preDiscountSupply).toBeCloseTo(1_868_181.8, 0)
+    expect(totals.discountAmount).toBeCloseTo(560_454.5, 0)
+    expect(totals.finalSupplyAmount).toBeCloseTo(1_307_727.3, 0)
     expect(totals.margin.isBelowMinimum).toBe(true)
     expect(totals.margin.status).toBe('below')
   })
 
   it('stays in-range with no discount', () => {
     const totals = calculateEstimateTotals({
-      items: [{ execution_unit_cost: 1_000_000, quantity: 1, margin_rate: 0.45 }],
+      // 견적단가를 실행단가의 (1/0.55)배로 잡으면 이윤율 45%가 된다
+      items: [{ execution_unit_cost: 1_000_000, quantity: 1, quoted_unit_price: 1_000_000 / 0.55 }],
       overheadRate: 0,
       selectedRiskRates: [],
       discountType: 'rate',
@@ -150,5 +180,22 @@ describe('calculateEstimateTotals (orchestrator)', () => {
 
     expect(totals.finalProfitRate).toBeCloseTo(0.45, 5)
     expect(totals.margin.status).toBe('in-range')
+  })
+
+  it('directly applies quoted unit price without any margin-rate formula', () => {
+    // 실행단가 5,000 x 2 = 10,000 / 견적단가 8,000 x 2 = 16,000 (마진 공식과 무관하게 그대로 적용)
+    const totals = calculateEstimateTotals({
+      items: [{ execution_unit_cost: 5_000, quantity: 2, quoted_unit_price: 8_000 }],
+      overheadRate: 0,
+      selectedRiskRates: [],
+      discountType: 'rate',
+      discountValue: 0,
+      vatRate: 0.1,
+      overallPolicy: 참가사용정책,
+    })
+
+    expect(totals.executionTotal).toBe(10_000)
+    expect(totals.quotedTotal).toBe(16_000)
+    expect(totals.finalSupplyAmount).toBe(16_000)
   })
 })

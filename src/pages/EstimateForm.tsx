@@ -5,7 +5,9 @@ import {
   generateEstimateNumber, fetchEstimateFull, saveEstimate, saveCustomItemToMaster,
   fetchItemMaster, fetchPricingPolicies, fetchRiskOptions,
 } from '../lib/estimateActions'
-import { calculateEstimateTotals, type DiscountValueType, type MarginPolicy } from '../lib/estimateCalculations'
+import {
+  calculateEstimateTotals, deriveMarginRate, type DiscountValueType, type MarginPolicy,
+} from '../lib/estimateCalculations'
 import EstimateItemsAccordion from '../components/estimates/EstimateItemsAccordion'
 import EstimateAdjustmentsPanel from '../components/estimates/EstimateAdjustmentsPanel'
 import EstimateSummaryPanel from '../components/estimates/EstimateSummaryPanel'
@@ -100,32 +102,29 @@ export default function EstimateForm() {
   const [discountType, setDiscountType] = useState<DiscountValueType>('rate')
   const [discountValue, setDiscountValue] = useState(0)
 
-  const seedItemsForClientType = useCallback(
-    (master: ItemMaster[], policies: PricingPolicy[], clientType: ClientType): EstimateItem[] => {
-      return master.map((m) => {
-        const policy = policies.find((p) => p.client_type === clientType && p.category === m.category)
-        return {
-          id: crypto.randomUUID(),
-          estimate_id: '',
-          item_master_id: m.id,
-          category: m.category,
-          name: m.name,
-          description: m.description,
-          unit: m.unit,
-          execution_unit_cost: m.default_execution_unit_cost,
-          quantity: 0,
-          margin_rate: policy?.default_margin_rate ?? 0,
-          execution_total: 0,
-          quoted_amount: 0,
-          show_to_client: true,
-          is_custom: false,
-          sort_order: m.sort_order,
-          created_at: '',
-        }
-      })
-    },
-    []
-  )
+  // 견적단가(품목마스터)에 등록된 실행단가/견적단가를 그대로 시드한다 — 고객유형과 무관한 고정값.
+  const seedItemsFromMaster = useCallback((master: ItemMaster[]): EstimateItem[] => {
+    return master.map((m) => ({
+      id: crypto.randomUUID(),
+      estimate_id: '',
+      item_master_id: m.id,
+      category: m.category,
+      name: m.name,
+      size: m.size,
+      description: m.description,
+      unit: m.unit,
+      execution_unit_cost: m.default_execution_unit_cost,
+      quantity: 0,
+      margin_rate: deriveMarginRate(m.default_execution_unit_cost, m.quoted_unit_price),
+      execution_total: 0,
+      quoted_unit_price: m.quoted_unit_price,
+      quoted_amount: 0,
+      show_to_client: true,
+      is_custom: false,
+      sort_order: m.sort_order,
+      created_at: '',
+    }))
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -168,7 +167,7 @@ export default function EstimateForm() {
         } else {
           const [number] = await Promise.all([generateEstimateNumber()])
           setInfo((prev) => ({ ...prev, estimate_number: number }))
-          setItems(seedItemsForClientType(master, policies, '기획사용'))
+          setItems(seedItemsFromMaster(master))
         }
       } finally {
         setLoading(false)
@@ -185,7 +184,9 @@ export default function EstimateForm() {
 
   const totals = useMemo(() => {
     return calculateEstimateTotals({
-      items: items.map((i) => ({ execution_unit_cost: i.execution_unit_cost, quantity: i.quantity, margin_rate: i.margin_rate })),
+      items: items.map((i) => ({
+        execution_unit_cost: i.execution_unit_cost, quantity: i.quantity, quoted_unit_price: i.quoted_unit_price,
+      })),
       overheadRate,
       selectedRiskRates: riskOptions.filter((r) => selectedRiskIds.has(r.id)).map((r) => r.default_rate),
       discountType,
@@ -195,18 +196,10 @@ export default function EstimateForm() {
     })
   }, [items, overheadRate, riskOptions, selectedRiskIds, discountType, discountValue, overallPolicy])
 
+  // 고객유형은 더 이상 항목별 견적단가에 영향을 주지 않는다 (품목마스터의 견적단가는 고정값).
+  // 최종이윤율 경고 기준(목표/최소/최대)만 고객유형에 따라 달라진다.
   const handleClientTypeChange = (clientType: ClientType) => {
-    if (clientType === info.client_type) return
-    const shouldReset = window.confirm(
-      '고객 유형을 변경하면 카테고리별 기본 이윤율이 달라집니다.\n기존 항목의 이윤율을 새 고객유형 기본값으로 재설정할까요?\n(취소 시 기존 이윤율 값 유지)'
-    )
     setInfo((prev) => ({ ...prev, client_type: clientType }))
-    if (shouldReset) {
-      setItems((prev) => prev.map((item) => {
-        const policy = pricingPolicies.find((p) => p.client_type === clientType && p.category === item.category)
-        return policy ? { ...item, margin_rate: policy.default_margin_rate } : item
-      }))
-    }
   }
 
   const handleChangeItem = (itemId: string, patch: Partial<EstimateItem>) => {
@@ -214,17 +207,17 @@ export default function EstimateForm() {
   }
 
   const handleAddCustomItem = (category: EstimateCategory) => {
-    const policy = pricingPolicies.find((p) => p.client_type === info.client_type && p.category === category)
     const newItem: EstimateItem = {
       id: crypto.randomUUID(),
       estimate_id: '',
       category,
       name: '',
-      unit: 'EA',
+      unit: '개',
       execution_unit_cost: 0,
       quantity: 1,
-      margin_rate: policy?.default_margin_rate ?? 0,
+      margin_rate: 0,
       execution_total: 0,
+      quoted_unit_price: 0,
       quoted_amount: 0,
       show_to_client: true,
       is_custom: true,
@@ -245,13 +238,15 @@ export default function EstimateForm() {
       await saveCustomItemToMaster({
         category: item.category,
         name: item.name,
+        size: item.size,
         description: item.description,
         unit: item.unit,
         execution_unit_cost: item.execution_unit_cost,
+        quoted_unit_price: item.quoted_unit_price,
       })
-      alert('품목마스터에 저장되었습니다.')
+      alert('견적단가에 저장되었습니다.')
     } catch {
-      alert('저장에 실패했습니다. (동일한 이름의 품목이 이미 있을 수 있습니다)')
+      alert('저장에 실패했습니다. (동일한 이름/사이즈의 품목이 이미 있을 수 있습니다)')
     }
   }
 
@@ -284,23 +279,29 @@ export default function EstimateForm() {
           included_scope: info.included_scope || undefined,
           excluded_scope: info.excluded_scope || undefined,
         },
-        items: items.map((i) => ({
-          item_master_id: i.item_master_id,
-          category: i.category,
-          name: i.name,
-          description: i.description,
-          unit: i.unit,
-          execution_unit_cost: i.execution_unit_cost,
-          quantity: i.quantity,
-          margin_rate: i.margin_rate,
-          execution_total: i.execution_unit_cost * i.quantity,
-          quoted_amount: i.margin_rate >= 1 ? 0 : (i.execution_unit_cost * i.quantity) / (1 - i.margin_rate),
-          show_to_client: i.show_to_client,
-          supplier: i.supplier,
-          memo: i.memo,
-          is_custom: i.is_custom,
-          sort_order: i.sort_order,
-        })),
+        items: items.map((i) => {
+          const executionTotal = i.execution_unit_cost * i.quantity
+          const quotedAmount = i.quoted_unit_price * i.quantity
+          return {
+            item_master_id: i.item_master_id,
+            category: i.category,
+            name: i.name,
+            size: i.size,
+            description: i.description,
+            unit: i.unit,
+            execution_unit_cost: i.execution_unit_cost,
+            quantity: i.quantity,
+            margin_rate: deriveMarginRate(executionTotal, quotedAmount),
+            execution_total: executionTotal,
+            quoted_unit_price: i.quoted_unit_price,
+            quoted_amount: quotedAmount,
+            show_to_client: i.show_to_client,
+            supplier: i.supplier,
+            memo: i.memo,
+            is_custom: i.is_custom,
+            sort_order: i.sort_order,
+          }
+        }),
         adjustments: [
           { adjustment_type: 'overhead', label: overheadLabel, value_type: 'rate', value: overheadRate },
           { adjustment_type: 'discount', label: undefined, value_type: discountType, value: discountValue },

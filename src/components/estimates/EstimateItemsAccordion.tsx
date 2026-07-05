@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
 import type { EstimateCategory, EstimateItem } from '../../types'
 import EstimateItemRow from './EstimateItemRow'
-import { calculateItemExecutionTotal, calculateItemQuotedAmount } from '../../lib/estimateCalculations'
+import { calculateItemQuotedTotal } from '../../lib/estimateCalculations'
 import { formatKRW } from '../../lib/format'
 
 export const ESTIMATE_CATEGORIES: EstimateCategory[] = [
-  '시스템 자재', '그래픽', '전기/조명', '가구/비품', '운송',
-  '설치/철거 인건비', '전시장 비용', '디자인/PM', '기타',
+  '시스템 자재', '마감재', '바닥', '그래픽', '전기/조명', '가구/비품', '운송',
+  '인건비', '전시장비용', '디자인', '관리비', '기타',
 ]
 
 interface Props {
@@ -40,8 +40,7 @@ export default function EstimateItemsAccordion({
         const selectedCount = categoryItems.filter((i) => i.quantity > 0).length
         const categoryQuoted = categoryItems.reduce((sum, i) => {
           if (i.quantity <= 0) return sum
-          const execTotal = calculateItemExecutionTotal(i.execution_unit_cost, i.quantity)
-          return sum + calculateItemQuotedAmount(execTotal, i.margin_rate)
+          return sum + calculateItemQuotedTotal(i.quoted_unit_price, i.quantity)
         }, 0)
 
         return (
@@ -71,13 +70,14 @@ export default function EstimateItemsAccordion({
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">
                         <th className="text-left px-2 py-2 font-semibold text-slate-500 text-xs">항목명</th>
-                        <th className="text-left px-2 py-2 font-semibold text-slate-500 text-xs">설명</th>
+                        <th className="text-left px-2 py-2 font-semibold text-slate-500 text-xs">사이즈</th>
                         <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs">단위</th>
                         <th className="text-right px-2 py-2 font-semibold text-slate-500 text-xs">실행단가</th>
                         <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs">수량</th>
-                        <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs">이윤율(%)</th>
+                        <th className="text-right px-2 py-2 font-semibold text-slate-500 text-xs">견적단가</th>
                         <th className="text-right px-3 py-2 font-semibold text-slate-500 text-xs">실행가</th>
                         <th className="text-right px-3 py-2 font-semibold text-slate-500 text-xs">판매가</th>
+                        <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs">이윤율</th>
                         <th className="text-center px-2 py-2 font-semibold text-slate-500 text-xs">고객노출</th>
                         <th className="w-10" />
                       </tr>

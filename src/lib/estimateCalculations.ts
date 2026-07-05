@@ -4,9 +4,22 @@ export function calculateItemExecutionTotal(executionUnitCost: number, quantity:
   return executionUnitCost * quantity
 }
 
+// 목표이윤율 기반 판매가 (참고용으로 유지 — 현재 UI 흐름에서는 견적단가를 직접 입력받으므로
+// 사용되지 않지만, 이윤율만으로 가격을 산정해야 하는 향후 케이스를 위해 남겨둔다).
 export function calculateItemQuotedAmount(executionTotal: number, marginRate: number): number {
   if (marginRate >= 1) return 0
   return executionTotal / (1 - marginRate)
+}
+
+// 품목마스터에 등록된 견적단가(단가) × 수량 — 견적서 작성 시 판매가는 이 값을 직접 사용한다.
+export function calculateItemQuotedTotal(quotedUnitPrice: number, quantity: number): number {
+  return quotedUnitPrice * quantity
+}
+
+// 실행가 대비 견적단가로부터 역산한 이윤율 — 입력값이 아니라 표시/검증용 파생값이다.
+export function deriveMarginRate(executionTotal: number, quotedTotal: number): number {
+  if (quotedTotal === 0) return 0
+  return (quotedTotal - executionTotal) / quotedTotal
 }
 
 export function calculateEstimateExecutionTotal(
@@ -15,13 +28,13 @@ export function calculateEstimateExecutionTotal(
   return items.reduce((sum, i) => (i.quantity > 0 ? sum + i.execution_total : sum), 0)
 }
 
-// 항목별 판매가(quoted_amount)의 합 — 할인전공급가의 기반이 되는 값.
-// 실행가합계가 아니라 이 값을 기준으로 삼아야 항목별 이윤율이 최종 견적금액에 반영된다.
+// 항목별 판매가(견적단가 × 수량)의 합 — 할인전공급가의 기반이 되는 값.
+// 실행가합계가 아니라 이 값을 기준으로 삼아야 항목별 견적단가가 최종 견적금액에 반영된다.
 export function calculateEstimateQuotedTotal(
-  items: { execution_total: number; quantity: number; margin_rate: number }[]
+  items: { quantity: number; quoted_unit_price: number }[]
 ): number {
   return items.reduce(
-    (sum, i) => (i.quantity > 0 ? sum + calculateItemQuotedAmount(i.execution_total, i.margin_rate) : sum),
+    (sum, i) => (i.quantity > 0 ? sum + calculateItemQuotedTotal(i.quoted_unit_price, i.quantity) : sum),
     0
   )
 }
@@ -102,7 +115,7 @@ export function validateMinimumProfitRate(
 }
 
 export interface EstimateTotalsInput {
-  items: { execution_unit_cost: number; quantity: number; margin_rate: number }[]
+  items: { execution_unit_cost: number; quantity: number; quoted_unit_price: number }[]
   overheadRate: number
   selectedRiskRates: number[]
   discountType: DiscountValueType
@@ -130,7 +143,7 @@ export function calculateEstimateTotals(input: EstimateTotalsInput): EstimateTot
   const itemsWithTotals = input.items.map((i) => ({
     execution_total: calculateItemExecutionTotal(i.execution_unit_cost, i.quantity),
     quantity: i.quantity,
-    margin_rate: i.margin_rate,
+    quoted_unit_price: i.quoted_unit_price,
   }))
   const executionTotal = calculateEstimateExecutionTotal(itemsWithTotals)
   const quotedTotal = calculateEstimateQuotedTotal(itemsWithTotals)

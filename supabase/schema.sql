@@ -273,3 +273,46 @@ insert into item_master (category, name, sort_order) values
   ('디자인/PM','사후 정산 업무',10)
 on conflict (category, name) do nothing;
 -- '기타' 카테고리는 기본 품목 없음 — 견적 작성 시 사용자가 직접 추가
+
+-- ============================================================
+-- 견적단가(품목마스터) 구조 개편
+-- 카테고리를 12종으로 재정의하고, 사이즈/견적단가(고정 판매단가) 필드를 추가한다.
+-- 기존 시드 데이터(실행단가 0, 실사용 없음)는 초기화하고 새 구조로 다시 입력한다.
+-- ============================================================
+
+delete from item_master;
+
+alter table item_master drop constraint if exists item_master_category_check;
+alter table item_master add constraint item_master_category_check check (category in (
+  '시스템 자재','마감재','바닥','그래픽','전기/조명','가구/비품','운송',
+  '인건비','전시장비용','디자인','관리비','기타'
+));
+
+alter table item_master add column if not exists size text;
+alter table item_master add column if not exists quoted_unit_price numeric not null default 0;
+
+alter table item_master alter column unit drop default;
+alter table item_master drop constraint if exists item_master_unit_check;
+alter table item_master add constraint item_master_unit_check check (unit in ('개','회배','식','세트','회'));
+alter table item_master alter column unit set default '개';
+
+alter table item_master drop constraint if exists item_master_category_name_key;
+alter table item_master add constraint item_master_category_name_size_key unique (category, name, size);
+
+-- estimate_items도 동일한 카테고리/단위 체계로 갱신하고 사이즈/견적단가(단가)를 추가한다.
+-- (아직 저장된 견적이 없어 데이터 마이그레이션 불필요)
+alter table estimate_items drop constraint if exists estimate_items_category_check;
+alter table estimate_items add constraint estimate_items_category_check check (category in (
+  '시스템 자재','마감재','바닥','그래픽','전기/조명','가구/비품','운송',
+  '인건비','전시장비용','디자인','관리비','기타'
+));
+
+alter table estimate_items add column if not exists size text;
+alter table estimate_items add column if not exists quoted_unit_price numeric not null default 0;
+
+alter table estimate_items alter column unit drop default;
+alter table estimate_items drop constraint if exists estimate_items_unit_check;
+alter table estimate_items add constraint estimate_items_unit_check check (unit in ('개','회배','식','세트','회'));
+alter table estimate_items alter column unit set default '개';
+
+create index if not exists idx_item_master_category_name on item_master(category, name);

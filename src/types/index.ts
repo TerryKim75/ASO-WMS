@@ -99,8 +99,9 @@ export interface ProjectItem {
 export type ClientType = '기획사용' | '참가사용'
 export type EstimateStatus = '작성중' | '발송완료' | '계약완료' | '취소'
 export type EstimateCategory =
-  | '시스템 자재' | '그래픽' | '전기/조명' | '가구/비품' | '운송'
-  | '설치/철거 인건비' | '전시장 비용' | '디자인/PM' | '기타'
+  | '시스템 자재' | '마감재' | '바닥' | '그래픽' | '전기/조명' | '가구/비품' | '운송'
+  | '인건비' | '전시장비용' | '디자인' | '관리비' | '기타'
+export type EstimateUnit = '개' | '회배' | '식' | '세트' | '회'
 export type AdjustmentType = 'overhead' | 'discount'
 export type AdjustmentValueType = 'rate' | 'fixed'
 
@@ -108,9 +109,11 @@ export interface ItemMaster {
   id: string
   category: EstimateCategory
   name: string
+  size?: string
   description?: string
-  unit: string
+  unit: EstimateUnit
   default_execution_unit_cost: number
+  quoted_unit_price: number
   sort_order: number
   is_active: boolean
   created_at: string
@@ -168,12 +171,14 @@ export interface EstimateItem {
   item_master_id?: string
   category: EstimateCategory
   name: string
+  size?: string
   description?: string
-  unit: string
+  unit: EstimateUnit
   execution_unit_cost: number
   quantity: number
   margin_rate: number
   execution_total: number
+  quoted_unit_price: number
   quoted_amount: number
   show_to_client: boolean
   supplier?: string

@@ -61,7 +61,9 @@ export default function EstimateDetail() {
   const totals = useMemo(() => {
     if (!full) return null
     return calculateEstimateTotals({
-      items: full.items.map((i) => ({ execution_unit_cost: i.execution_unit_cost, quantity: i.quantity, margin_rate: i.margin_rate })),
+      items: full.items.map((i) => ({
+        execution_unit_cost: i.execution_unit_cost, quantity: i.quantity, quoted_unit_price: i.quoted_unit_price,
+      })),
       overheadRate,
       selectedRiskRates: full.risks.map((r) => r.rate),
       discountType: discountAdj?.value_type || 'rate',
