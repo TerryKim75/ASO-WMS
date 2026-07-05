@@ -2,6 +2,8 @@ import { Printer } from 'lucide-react'
 import type { CustomerLineItem, CustomerSummary } from '../../lib/estimateCustomerView'
 import { formatKRW } from '../../lib/format'
 
+const ASO_ADDRESS = '서울시 금천구 가산디지탈2로 70, 대륭테크노타운 19차, 1203호'
+
 export interface CustomerEstimateHeader {
   estimate_number: string
   client_name: string
@@ -40,12 +42,17 @@ function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineI
       <td style="text-align:right;font-weight:600">${formatKRW(item.quoted_amount)}</td>
     </tr>`).join('')
 
+  const logoUrl = `${window.location.origin}/images/aso-logo.png`
+
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
   <title>견적서 - ${header.estimate_number}</title>
   <style>
     @page { margin: 20mm; }
     body { font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #1e293b; }
-    .title { font-size: 26px; font-weight: 700; letter-spacing: 6px; text-align: center; border-bottom: 3px solid #1e293b; padding-bottom: 12px; margin-bottom: 20px; }
+    .doc-header { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 3px solid #1e293b; padding-bottom: 12px; margin-bottom: 20px; }
+    .brand img { height: 32px; display: block; }
+    .brand .address { margin-top: 4px; font-size: 10px; color: #94a3b8; }
+    .title { font-size: 24px; font-weight: 700; letter-spacing: 6px; }
     .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 40px; margin-bottom: 20px; }
     .info-row { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px dashed #e2e8f0; }
     .info-label { color: #64748b; min-width: 72px; font-size: 12px; }
@@ -56,12 +63,19 @@ function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineI
     .totals { margin-left: auto; width: 320px; }
     .totals-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
     .totals-row.final { font-size: 17px; font-weight: 700; border-top: 2px solid #1e293b; margin-top: 6px; padding-top: 8px; }
-    .scope-section { margin-top: 20px; }
-    .scope-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
-    .scope-body { white-space: pre-wrap; font-size: 12px; color: #475569; line-height: 1.6; }
-    .footer-note { margin-top: 24px; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; white-space: pre-wrap; font-size: 11px; color: #64748b; line-height: 1.7; }
+    .scope-block { margin-top: 12px; }
+    .scope-section { margin-top: 8px; }
+    .scope-title { font-weight: 700; font-size: 12px; margin-bottom: 3px; }
+    .scope-body { white-space: pre-wrap; font-size: 11px; color: #475569; line-height: 1.4; }
+    .footer-note { margin-top: 10px; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; white-space: pre-wrap; font-size: 10px; color: #64748b; line-height: 1.4; }
   </style></head><body>
-  <div class="title">견 &nbsp; 적 &nbsp; 서</div>
+  <div class="doc-header">
+    <div class="brand">
+      <img src="${logoUrl}" alt="ASO" />
+      <div class="address">${ASO_ADDRESS}</div>
+    </div>
+    <div class="title">견 &nbsp; 적 &nbsp; 서</div>
+  </div>
   <div class="info-grid">
     <div>
       <div class="info-row"><span class="info-label">고객명</span><span class="info-value">${header.client_name}</span></div>
@@ -89,9 +103,11 @@ function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineI
     <div class="totals-row"><span>VAT (10%)</span><span>${formatKRW(summary.vatAmount)}</span></div>
     <div class="totals-row final"><span>최종 견적금액</span><span>${formatKRW(summary.finalTotalAmount)}</span></div>
   </div>
-  ${header.included_scope ? `<div class="scope-section"><div class="scope-title">포함 사항</div><div class="scope-body">${header.included_scope}</div></div>` : ''}
-  ${header.excluded_scope ? `<div class="scope-section"><div class="scope-title">불포함 사항</div><div class="scope-body">${header.excluded_scope}</div></div>` : ''}
-  ${header.customer_notes ? `<div class="footer-note">${header.customer_notes}</div>` : ''}
+  <div class="scope-block">
+    ${header.included_scope ? `<div class="scope-section"><div class="scope-title">포함 사항</div><div class="scope-body">${header.included_scope}</div></div>` : ''}
+    ${header.excluded_scope ? `<div class="scope-section"><div class="scope-title">불포함 사항</div><div class="scope-body">${header.excluded_scope}</div></div>` : ''}
+    ${header.customer_notes ? `<div class="footer-note">${header.customer_notes}</div>` : ''}
+  </div>
   </body></html>`
 }
 
@@ -123,7 +139,11 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
       </div>
 
       <div className="p-5 md:p-8 space-y-6">
-        <div className="text-center border-b-4 border-slate-800 pb-3">
+        <div className="flex items-end justify-between border-b-4 border-slate-800 pb-3">
+          <div>
+            <img src="/images/aso-logo.png" alt="ASO" className="h-8 w-auto" />
+            <p className="text-[11px] text-slate-400 mt-1">{ASO_ADDRESS}</p>
+          </div>
           <h2 className="text-2xl font-bold tracking-[0.3em] text-slate-800">견 적 서</h2>
         </div>
 
@@ -197,23 +217,25 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
           </div>
         </div>
 
-        {header.included_scope && (
-          <div>
-            <p className="font-semibold text-sm text-slate-700 mb-1">포함 사항</p>
-            <p className="text-xs text-slate-500 whitespace-pre-wrap leading-relaxed">{header.included_scope}</p>
-          </div>
-        )}
-        {header.excluded_scope && (
-          <div>
-            <p className="font-semibold text-sm text-slate-700 mb-1">불포함 사항</p>
-            <p className="text-xs text-slate-500 whitespace-pre-wrap leading-relaxed">{header.excluded_scope}</p>
-          </div>
-        )}
-        {header.customer_notes && (
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-            <p className="text-xs text-slate-500 whitespace-pre-wrap leading-relaxed">{header.customer_notes}</p>
-          </div>
-        )}
+        <div className="space-y-2.5">
+          {header.included_scope && (
+            <div>
+              <p className="font-semibold text-xs text-slate-700 mb-0.5">포함 사항</p>
+              <p className="text-xs text-slate-500 whitespace-pre-wrap leading-snug">{header.included_scope}</p>
+            </div>
+          )}
+          {header.excluded_scope && (
+            <div>
+              <p className="font-semibold text-xs text-slate-700 mb-0.5">불포함 사항</p>
+              <p className="text-xs text-slate-500 whitespace-pre-wrap leading-snug">{header.excluded_scope}</p>
+            </div>
+          )}
+          {header.customer_notes && (
+            <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+              <p className="text-xs text-slate-500 whitespace-pre-wrap leading-snug">{header.customer_notes}</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

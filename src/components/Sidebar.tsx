@@ -19,10 +19,7 @@ const navItems = [
   { to: '/inventory', label: '재고현황', icon: Package },
   { to: '/transactions', label: '입출고내역', icon: ArrowLeftRight },
   { to: '/projects', label: '프로젝트', icon: FolderKanban },
-  {
-    to: '/estimates', label: '견적서', icon: FileText,
-    children: [{ to: '/estimates/price-list', label: '견적단가' }],
-  },
+  { to: '/estimates', label: '견적서', icon: FileText },
   { to: '/staff', label: '시공인력', icon: Hammer },
   { to: '/vendors', label: '발주처', icon: Building2 },
   { to: '/work-report', label: '업무보고서', icon: ClipboardList },
@@ -74,26 +71,6 @@ export default function Sidebar() {
                 <item.icon size={18} />
                 {item.label}
               </NavLink>
-              {item.children && (
-                <ul className="mt-1 ml-9 space-y-0.5">
-                  {item.children.map((child) => (
-                    <li key={child.to}>
-                      <NavLink
-                        to={child.to}
-                        className={({ isActive }) =>
-                          `block px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                            isActive
-                              ? 'bg-violet-600/70 text-white'
-                              : 'text-slate-400 hover:bg-slate-700 hover:text-white'
-                          }`
-                        }
-                      >
-                        {child.label}
-                      </NavLink>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </li>
           ))}
         </ul>

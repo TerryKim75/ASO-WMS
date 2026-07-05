@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ChevronRight, AlertTriangle } from 'lucide-react'
+import { Plus, ChevronRight, AlertTriangle, Tag } from 'lucide-react'
 import { fetchEstimateList } from '../lib/estimateActions'
 import { formatKRW, formatPercent } from '../lib/format'
 import EstimateDetailModal from '../components/estimates/EstimateDetailModal'
@@ -52,12 +52,20 @@ export default function Estimates() {
           <h1 className="text-xl md:text-2xl font-bold text-slate-800">견적서</h1>
           <p className="text-slate-500 text-sm mt-0.5">고객 유형별 실행가 기준 견적 관리</p>
         </div>
-        <button
-          onClick={() => navigate('/estimates/new')}
-          className="flex items-center gap-2 px-3 py-2 md:px-4 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors shadow-sm"
-        >
-          <Plus size={16} /><span className="hidden sm:inline">견적서 작성</span><span className="sm:hidden">작성</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/estimates/price-list')}
+            className="flex items-center gap-2 px-3 py-2 md:px-4 bg-white text-slate-600 border border-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <Tag size={16} /><span className="hidden sm:inline">견적단가</span><span className="sm:hidden">단가</span>
+          </button>
+          <button
+            onClick={() => navigate('/estimates/new')}
+            className="flex items-center gap-2 px-3 py-2 md:px-4 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors shadow-sm"
+          >
+            <Plus size={16} /><span className="hidden sm:inline">견적서 작성</span><span className="sm:hidden">작성</span>
+          </button>
+        </div>
       </div>
 
       {/* 상태 필터 */}
