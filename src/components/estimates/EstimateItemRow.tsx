@@ -3,7 +3,7 @@ import type { EstimateItem, EstimateUnit } from '../../types'
 import { calculateItemExecutionTotal, calculateItemQuotedTotal, deriveMarginRate } from '../../lib/estimateCalculations'
 import { formatKRW, formatPercent } from '../../lib/format'
 
-const ESTIMATE_UNITS: EstimateUnit[] = ['개', '회배', '식', '세트', '회']
+const ESTIMATE_UNITS: EstimateUnit[] = ['개', '회배', '식', '세트', '회', '장', '미터', '대', '시간', 'KW', '모듈']
 
 interface Props {
   item: EstimateItem

@@ -316,3 +316,29 @@ alter table estimate_items add constraint estimate_items_unit_check check (unit 
 alter table estimate_items alter column unit set default '개';
 
 create index if not exists idx_item_master_category_name on item_master(category, name);
+
+-- ============================================================
+-- 견적단가 대량 등록(아소시스템 단가표)에 맞춰 카테고리 5종, 단위 6종 확장
+-- ============================================================
+
+alter table item_master drop constraint if exists item_master_category_check;
+alter table item_master add constraint item_master_category_check check (category in (
+  '시스템 자재','목재','마감재','바닥','필름','그래픽','그래픽인건비','전기/조명','가구/비품',
+  '영상장비','운송','인건비','전시장비용','현장비','디자인','관리비','기타'
+));
+
+alter table item_master drop constraint if exists item_master_unit_check;
+alter table item_master add constraint item_master_unit_check check (unit in (
+  '개','회배','식','세트','회','장','미터','대','시간','KW','모듈'
+));
+
+alter table estimate_items drop constraint if exists estimate_items_category_check;
+alter table estimate_items add constraint estimate_items_category_check check (category in (
+  '시스템 자재','목재','마감재','바닥','필름','그래픽','그래픽인건비','전기/조명','가구/비품',
+  '영상장비','운송','인건비','전시장비용','현장비','디자인','관리비','기타'
+));
+
+alter table estimate_items drop constraint if exists estimate_items_unit_check;
+alter table estimate_items add constraint estimate_items_unit_check check (unit in (
+  '개','회배','식','세트','회','장','미터','대','시간','KW','모듈'
+));

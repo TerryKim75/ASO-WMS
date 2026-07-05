@@ -8,7 +8,7 @@ import { ESTIMATE_CATEGORIES } from '../components/estimates/EstimateItemsAccord
 import { formatPercent } from '../lib/format'
 import type { EstimateCategory, EstimateUnit, ItemMaster } from '../types'
 
-const ESTIMATE_UNITS: EstimateUnit[] = ['개', '회배', '식', '세트', '회']
+const ESTIMATE_UNITS: EstimateUnit[] = ['개', '회배', '식', '세트', '회', '장', '미터', '대', '시간', 'KW', '모듈']
 
 const emptyRow = (category: EstimateCategory): ItemMaster => ({
   id: crypto.randomUUID(),
