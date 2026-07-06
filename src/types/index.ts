@@ -98,6 +98,8 @@ export interface ProjectItem {
 
 export type ClientType = '기획사용' | '참가사용'
 export type EstimateStatus = '작성중' | '발송완료' | '계약완료' | '취소'
+// 기본 제공 분류 목록(드롭다운 프리셋). item_master/estimate_items의 실제 category 값은
+// 사용자가 직접 입력한 새 분류도 허용하므로 string이며, 이 목록에 없을 수 있다.
 export type EstimateCategory =
   | '시스템 자재' | '마감재' | '바닥' | '그래픽' | '전기/조명' | '가구/비품' | '운송'
   | '인건비' | '관리비' | '기타'
@@ -108,7 +110,8 @@ export type AdjustmentValueType = 'rate' | 'fixed'
 
 export interface ItemMaster {
   id: string
-  category: EstimateCategory
+  client_type: ClientType
+  category: string
   name: string
   size?: string
   description?: string
@@ -174,7 +177,7 @@ export interface EstimateItem {
   id: string
   estimate_id: string
   item_master_id?: string
-  category: EstimateCategory
+  category: string
   name: string
   size?: string
   description?: string

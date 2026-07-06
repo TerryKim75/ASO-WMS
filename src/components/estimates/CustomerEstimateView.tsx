@@ -60,11 +60,11 @@ function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineI
     table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
     th, td { border: 1px solid #cbd5e1; padding: 8px 10px; font-size: 12px; }
     thead th { background: #f1f5f9; font-weight: 600; }
-    .totals { margin-left: auto; width: 320px; }
+    .summary-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-top: 2px; }
+    .totals { width: 300px; flex-shrink: 0; }
     .totals-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
     .totals-row.final { font-size: 17px; font-weight: 700; border-top: 2px solid #1e293b; margin-top: 6px; padding-top: 8px; }
-    .scope-block { margin-top: 4px; }
-    .scope-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+    .scope-columns { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
     .scope-title { font-weight: 700; font-size: 12px; margin-bottom: 3px; }
     .scope-body { white-space: pre-wrap; font-size: 11px; color: #475569; line-height: 1.4; }
     .footer-note { margin-top: 10px; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; white-space: pre-wrap; font-size: 10px; color: #64748b; line-height: 1.4; }
@@ -97,19 +97,19 @@ function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineI
     </tr></thead>
     <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px">항목 없음</td></tr>'}</tbody>
   </table>
-  <div class="totals">
-    <div class="totals-row"><span>공급가</span><span>${formatKRW(summary.preDiscountSupply)}</span></div>
-    ${summary.discountAmount > 0 ? `<div class="totals-row"><span>할인</span><span>-${formatKRW(summary.discountAmount)}</span></div>` : ''}
-    <div class="totals-row"><span>VAT (10%)</span><span>${formatKRW(summary.vatAmount)}</span></div>
-    <div class="totals-row final"><span>최종 견적금액</span><span>${formatKRW(summary.finalTotalAmount)}</span></div>
-  </div>
-  <div class="scope-block">
+  <div class="summary-row">
     <div class="scope-columns">
       ${header.included_scope ? `<div><div class="scope-title">포함 사항</div><div class="scope-body">${header.included_scope}</div></div>` : '<div></div>'}
       ${header.excluded_scope ? `<div><div class="scope-title">불포함 사항</div><div class="scope-body">${header.excluded_scope}</div></div>` : '<div></div>'}
     </div>
-    ${header.customer_notes ? `<div class="footer-note">${header.customer_notes}</div>` : ''}
+    <div class="totals">
+      <div class="totals-row"><span>공급가</span><span>${formatKRW(summary.preDiscountSupply)}</span></div>
+      ${summary.discountAmount > 0 ? `<div class="totals-row"><span>할인</span><span>-${formatKRW(summary.discountAmount)}</span></div>` : ''}
+      <div class="totals-row"><span>VAT (10%)</span><span>${formatKRW(summary.vatAmount)}</span></div>
+      <div class="totals-row final"><span>최종 견적금액</span><span>${formatKRW(summary.finalTotalAmount)}</span></div>
+    </div>
   </div>
+  ${header.customer_notes ? `<div class="footer-note">${header.customer_notes}</div>` : ''}
   </body></html>`
 }
 
@@ -206,21 +206,8 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
           </table>
         </div>
 
-        <div className="flex justify-end">
-          <div className="w-full max-w-xs space-y-1 text-sm">
-            <div className="flex justify-between py-1"><span className="text-slate-500">공급가</span><span>{formatKRW(summary.preDiscountSupply)}</span></div>
-            {summary.discountAmount > 0 && (
-              <div className="flex justify-between py-1"><span className="text-slate-500">할인</span><span>-{formatKRW(summary.discountAmount)}</span></div>
-            )}
-            <div className="flex justify-between py-1"><span className="text-slate-500">VAT (10%)</span><span>{formatKRW(summary.vatAmount)}</span></div>
-            <div className="flex justify-between py-2 border-t-2 border-slate-800 text-lg font-bold">
-              <span>최종 견적금액</span><span>{formatKRW(summary.finalTotalAmount)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2.5 -mt-3">
-          <div className="grid grid-cols-2 gap-x-6">
+        <div className="flex items-start justify-between gap-5 -mt-2">
+          <div className="flex-1 grid grid-cols-2 gap-x-3">
             {header.included_scope && (
               <div>
                 <p className="font-semibold text-xs text-slate-700 mb-0.5">포함 사항</p>
@@ -234,12 +221,23 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
               </div>
             )}
           </div>
-          {header.customer_notes && (
-            <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-              <p className="text-xs text-slate-500 whitespace-pre-wrap leading-snug">{header.customer_notes}</p>
+          <div className="w-full max-w-xs flex-shrink-0 space-y-1 text-sm">
+            <div className="flex justify-between py-1"><span className="text-slate-500">공급가</span><span>{formatKRW(summary.preDiscountSupply)}</span></div>
+            {summary.discountAmount > 0 && (
+              <div className="flex justify-between py-1"><span className="text-slate-500">할인</span><span>-{formatKRW(summary.discountAmount)}</span></div>
+            )}
+            <div className="flex justify-between py-1"><span className="text-slate-500">VAT (10%)</span><span>{formatKRW(summary.vatAmount)}</span></div>
+            <div className="flex justify-between py-2 border-t-2 border-slate-800 text-lg font-bold">
+              <span>최종 견적금액</span><span>{formatKRW(summary.finalTotalAmount)}</span>
             </div>
-          )}
+          </div>
         </div>
+
+        {header.customer_notes && (
+          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+            <p className="text-xs text-slate-500 whitespace-pre-wrap leading-snug">{header.customer_notes}</p>
+          </div>
+        )}
       </div>
     </div>
   )

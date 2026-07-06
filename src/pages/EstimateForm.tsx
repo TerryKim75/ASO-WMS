@@ -12,7 +12,7 @@ import EstimateItemsAccordion from '../components/estimates/EstimateItemsAccordi
 import EstimateAdjustmentsPanel from '../components/estimates/EstimateAdjustmentsPanel'
 import EstimateSummaryPanel from '../components/estimates/EstimateSummaryPanel'
 import type {
-  ClientType, EstimateStatus, EstimateItem, EstimateCategory, ItemMaster, PricingPolicy, RiskOption,
+  ClientType, EstimateStatus, EstimateItem, ItemMaster, PricingPolicy, RiskOption,
 } from '../types'
 
 const DEFAULT_INCLUDED_SCOPE = [
@@ -33,6 +33,10 @@ const DEFAULT_CUSTOMER_NOTES = [
   '본 견적의 유효기간은 발행일로부터 14일입니다.',
   '계약 확정 후 고객 사유로 인한 변경, 취소, 지연 발생 시 추가 비용이 청구될 수 있습니다.',
 ].join('\n')
+
+function itemKey(category: string, name: string, size?: string) {
+  return `${category}|||${name}|||${size || ''}`
+}
 
 function plusDaysStr(days: number) {
   const d = new Date()
@@ -102,7 +106,7 @@ export default function EstimateForm() {
   const [discountType, setDiscountType] = useState<DiscountValueType>('rate')
   const [discountValue, setDiscountValue] = useState(0)
 
-  // 견적단가(품목마스터)에 등록된 실행단가/견적단가를 그대로 시드한다 — 고객유형과 무관한 고정값.
+  // 견적단가(품목마스터)에 등록된 실행단가/견적단가를 그대로 시드한다.
   const seedItemsFromMaster = useCallback((master: ItemMaster[]): EstimateItem[] => {
     return master.map((m) => ({
       id: crypto.randomUUID(),
@@ -126,13 +130,40 @@ export default function EstimateForm() {
     }))
   }, [])
 
+  // 고객유형 전환 시: 이미 입력한 수량은 유지하되, 실행단가/견적단가는 새 고객유형의
+  // 견적단가로 교체한다. 새 고객유형에만 있는 품목은 수량 0으로 추가되고, 커스텀 항목은
+  // 그대로 둔다.
+  const resyncItemsForClientType = useCallback(async (clientType: ClientType) => {
+    const master = await fetchItemMaster(clientType)
+    const masterByKey = new Map(master.map((m) => [itemKey(m.category, m.name, m.size), m]))
+
+    setItems((prev) => {
+      const existingKeys = new Set(
+        prev.filter((i) => !i.is_custom).map((i) => itemKey(i.category, i.name, i.size))
+      )
+      const updated = prev.map((item) => {
+        if (item.is_custom) return item
+        const match = masterByKey.get(itemKey(item.category, item.name, item.size))
+        if (!match) return item
+        return {
+          ...item,
+          item_master_id: match.id,
+          execution_unit_cost: match.default_execution_unit_cost,
+          quoted_unit_price: match.quoted_unit_price,
+          margin_rate: deriveMarginRate(match.default_execution_unit_cost, match.quoted_unit_price),
+        }
+      })
+      const missing = master.filter((m) => !existingKeys.has(itemKey(m.category, m.name, m.size)))
+      const newRows = seedItemsFromMaster(missing)
+      return [...updated, ...newRows]
+    })
+  }, [seedItemsFromMaster])
+
   useEffect(() => {
     async function load() {
       setLoading(true)
       try {
-        const [master, policies, risks] = await Promise.all([
-          fetchItemMaster(), fetchPricingPolicies(), fetchRiskOptions(),
-        ])
+        const [policies, risks] = await Promise.all([fetchPricingPolicies(), fetchRiskOptions()])
         setPricingPolicies(policies)
         setRiskOptions(risks)
 
@@ -165,7 +196,10 @@ export default function EstimateForm() {
           if (discount) { setDiscountType(discount.value_type); setDiscountValue(discount.value) }
           setSelectedRiskIds(new Set(full.risks.map((r) => r.risk_option_id).filter(Boolean) as string[]))
         } else {
-          const [number] = await Promise.all([generateEstimateNumber()])
+          const defaultInfo = emptyInfo()
+          const [number, master] = await Promise.all([
+            generateEstimateNumber(), fetchItemMaster(defaultInfo.client_type),
+          ])
           setInfo((prev) => ({ ...prev, estimate_number: number }))
           setItems(seedItemsFromMaster(master))
         }
@@ -196,17 +230,19 @@ export default function EstimateForm() {
     })
   }, [items, overheadRate, riskOptions, selectedRiskIds, discountType, discountValue, overallPolicy])
 
-  // 고객유형은 더 이상 항목별 견적단가에 영향을 주지 않는다 (품목마스터의 견적단가는 고정값).
-  // 최종이윤율 경고 기준(목표/최소/최대)만 고객유형에 따라 달라진다.
+  // 고객유형별로 견적단가(품목마스터)가 분리되어 있으므로, 전환 시 수량은 유지한 채
+  // 실행단가/견적단가만 새 고객유형 기준으로 다시 불러온다.
   const handleClientTypeChange = (clientType: ClientType) => {
+    if (clientType === info.client_type) return
     setInfo((prev) => ({ ...prev, client_type: clientType }))
+    resyncItemsForClientType(clientType)
   }
 
   const handleChangeItem = (itemId: string, patch: Partial<EstimateItem>) => {
     setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...patch } : i)))
   }
 
-  const handleAddCustomItem = (category: EstimateCategory) => {
+  const handleAddCustomItem = (category: string) => {
     const newItem: EstimateItem = {
       id: crypto.randomUUID(),
       estimate_id: '',
@@ -236,6 +272,7 @@ export default function EstimateForm() {
     if (!item || !item.name.trim()) { alert('항목명을 입력한 후 저장해주세요.'); return }
     try {
       await saveCustomItemToMaster({
+        client_type: info.client_type,
         category: item.category,
         name: item.name,
         size: item.size,

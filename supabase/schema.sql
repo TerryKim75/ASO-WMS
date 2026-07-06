@@ -367,3 +367,39 @@ alter table estimate_items add constraint estimate_items_category_check check (c
   '시스템 자재','목재','마감재','바닥','필름','그래픽','전기/조명','가구/비품',
   '영상장비','운송','인건비','현장비','관리비','기타'
 ));
+
+-- ============================================================
+-- 견적단가 화면에서 프리셋 외 새 분류를 직접 입력해 추가할 수 있도록
+-- category 체크 제약조건을 제거한다(빈 문자열만 방지, 자유 텍스트 허용).
+-- ============================================================
+alter table item_master drop constraint if exists item_master_category_check;
+alter table item_master add constraint item_master_category_not_empty check (btrim(category) <> '');
+
+alter table estimate_items drop constraint if exists estimate_items_category_check;
+alter table estimate_items add constraint estimate_items_category_not_empty check (btrim(category) <> '');
+
+-- ============================================================
+-- 견적단가를 고객유형(기획사용/참가사용)별로 분리 관리한다.
+-- 기존 117개 품목은 전부 "참가사용"으로 확정하고, "기획사용"은 참가사용 목록을
+-- 그대로 복제해 새로 만든다(실행단가/견적단가는 이후 화면에서 각자 조정).
+-- ============================================================
+alter table item_master add column if not exists client_type text not null default '참가사용'
+  check (client_type in ('기획사용', '참가사용'));
+
+alter table item_master drop constraint if exists item_master_category_name_size_key;
+alter table item_master add constraint item_master_client_category_name_size_key
+  unique (client_type, category, name, size);
+
+update item_master set client_type = '참가사용' where client_type is distinct from '참가사용' and client_type is distinct from '기획사용';
+
+insert into item_master (category, name, size, unit, default_execution_unit_cost, quoted_unit_price, sort_order, is_active, client_type)
+select p.category, p.name, p.size, p.unit, p.default_execution_unit_cost, p.quoted_unit_price, p.sort_order, p.is_active, '기획사용'
+from item_master p
+where p.client_type = '참가사용'
+  and not exists (
+    select 1 from item_master existing
+    where existing.client_type = '기획사용'
+      and existing.category = p.category
+      and existing.name = p.name
+      and coalesce(existing.size, '') = coalesce(p.size, '')
+  );

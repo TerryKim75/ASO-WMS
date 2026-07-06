@@ -13,7 +13,7 @@ export const ESTIMATE_CATEGORIES: EstimateCategory[] = [
 interface Props {
   items: EstimateItem[]
   onChangeItem: (id: string, patch: Partial<EstimateItem>) => void
-  onAddCustomItem: (category: EstimateCategory) => void
+  onAddCustomItem: (category: string) => void
   onRemoveItem: (id: string) => void
   onSaveItemToMaster: (id: string) => void
 }
@@ -21,9 +21,9 @@ interface Props {
 export default function EstimateItemsAccordion({
   items, onChangeItem, onAddCustomItem, onRemoveItem, onSaveItemToMaster,
 }: Props) {
-  const [expanded, setExpanded] = useState<Set<EstimateCategory>>(new Set(ESTIMATE_CATEGORIES.slice(0, 1)))
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(ESTIMATE_CATEGORIES.slice(0, 1)))
 
-  const toggle = (category: EstimateCategory) => {
+  const toggle = (category: string) => {
     setExpanded((prev) => {
       const next = new Set(prev)
       if (next.has(category)) next.delete(category)
@@ -32,9 +32,17 @@ export default function EstimateItemsAccordion({
     })
   }
 
+  // 품목마스터에 직접 입력한 새 분류(프리셋 목록에 없는 값)도 아코디언에 표시한다.
+  const categories = [
+    ...ESTIMATE_CATEGORIES,
+    ...Array.from(new Set(items.map((i) => i.category))).filter(
+      (c) => !ESTIMATE_CATEGORIES.includes(c as EstimateCategory)
+    ),
+  ]
+
   return (
     <div className="space-y-2">
-      {ESTIMATE_CATEGORIES.map((category) => {
+      {categories.map((category) => {
         const categoryItems = items
           .filter((i) => i.category === category)
           .sort((a, b) => a.sort_order - b.sort_order)

@@ -1,18 +1,27 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Save, Trash2, Pencil, Check, ArrowLeft, GripVertical } from 'lucide-react'
+import { Plus, Save, Trash2, Pencil, Check, ArrowLeft, GripVertical, List } from 'lucide-react'
 import {
   fetchItemMasterForAdmin, upsertItemMasterRows, deleteItemMasterRow, type ItemMasterDraft,
 } from '../lib/estimateActions'
 import { deriveMarginRate } from '../lib/estimateCalculations'
 import { ESTIMATE_CATEGORIES } from '../components/estimates/EstimateItemsAccordion'
 import { formatKRW, formatPercent } from '../lib/format'
-import type { EstimateCategory, EstimateUnit, ItemMaster } from '../types'
+import type { ClientType, EstimateCategory, EstimateUnit, ItemMaster } from '../types'
 
 const ESTIMATE_UNITS: EstimateUnit[] = ['개', '회배', '식', '세트', '회', '장', '미터', '대', '시간', 'KW', '모듈']
+const NEW_CATEGORY_OPTION = '__new_category__'
+const CLIENT_TYPES: ClientType[] = ['기획사용', '참가사용']
 
-const emptyRow = (category: EstimateCategory): ItemMaster => ({
+// 목록에 없는(사용자가 직접 입력한) 분류는 프리셋 뒤로 정렬한다.
+function categoryOrderIndex(category: string): number {
+  const idx = ESTIMATE_CATEGORIES.indexOf(category as EstimateCategory)
+  return idx === -1 ? ESTIMATE_CATEGORIES.length : idx
+}
+
+const emptyRow = (clientType: ClientType, category: string): ItemMaster => ({
   id: crypto.randomUUID(),
+  client_type: clientType,
   category,
   name: '',
   size: '',
@@ -33,7 +42,8 @@ export default function EstimatePriceList() {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [categoryFilter, setCategoryFilter] = useState<EstimateCategory | 'all'>('all')
+  const [clientTypeFilter, setClientTypeFilter] = useState<ClientType>('참가사용')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
   const [editingIds, setEditingIds] = useState<Set<string>>(new Set())
   const [draggedId, setDraggedId] = useState<string | null>(null)
@@ -52,23 +62,34 @@ export default function EstimatePriceList() {
 
   useEffect(() => { load() }, [load])
 
+  const clientTypeRows = useMemo(
+    () => rows.filter((r) => r.client_type === clientTypeFilter),
+    [rows, clientTypeFilter]
+  )
+
   const filtered = useMemo(() => {
-    return rows
+    return clientTypeRows
       .filter((r) => {
         if (categoryFilter !== 'all' && r.category !== categoryFilter) return false
         if (search.trim() && !r.name.toLowerCase().includes(search.trim().toLowerCase())) return false
         return true
       })
       .sort((a, b) => {
-        const catDiff = ESTIMATE_CATEGORIES.indexOf(a.category) - ESTIMATE_CATEGORIES.indexOf(b.category)
+        const catDiff = categoryOrderIndex(a.category) - categoryOrderIndex(b.category)
         if (catDiff !== 0) return catDiff
         return a.sort_order - b.sort_order
       })
-  }, [rows, categoryFilter, search])
+  }, [clientTypeRows, categoryFilter, search])
+
+  const customCategories = useMemo(() => {
+    return Array.from(new Set(clientTypeRows.map((r) => r.category))).filter(
+      (c) => !ESTIMATE_CATEGORIES.includes(c as EstimateCategory)
+    )
+  }, [clientTypeRows])
 
   const handleAddRow = () => {
     const category = categoryFilter === 'all' ? ESTIMATE_CATEGORIES[0] : categoryFilter
-    const row = emptyRow(category)
+    const row = emptyRow(clientTypeFilter, category)
     setRows((prev) => [row, ...prev])
     setEditingIds((prev) => new Set(prev).add(row.id))
   }
@@ -128,12 +149,13 @@ export default function EstimatePriceList() {
   }
 
   const handleSave = async () => {
-    const invalid = rows.some((r) => !r.name.trim())
-    if (invalid) { alert('항목명이 비어 있는 행이 있습니다.'); return }
+    if (rows.some((r) => !r.name.trim())) { alert('항목명이 비어 있는 행이 있습니다.'); return }
+    if (rows.some((r) => !r.category.trim())) { alert('분류가 비어 있는 행이 있습니다. (새 분류명을 입력해주세요)'); return }
     setSaving(true)
     try {
       const drafts: ItemMasterDraft[] = rows.map((r) => ({
         id: r.id,
+        client_type: r.client_type,
         category: r.category,
         name: r.name.trim(),
         size: r.size || undefined,
@@ -179,20 +201,39 @@ export default function EstimatePriceList() {
         </div>
       </div>
 
+      <div className="flex gap-2">
+        {CLIENT_TYPES.map((ct) => (
+          <button key={ct} onClick={() => { setClientTypeFilter(ct); setCategoryFilter('all') }}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+              clientTypeFilter === ct ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 border border-slate-300'
+            }`}>
+            {ct} <span className="ml-1 text-xs opacity-70">({rows.filter((r) => r.client_type === ct).length})</span>
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setCategoryFilter('all')}
             className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-colors ${
               categoryFilter === 'all' ? 'bg-violet-600 text-white' : 'bg-white text-slate-600 border border-slate-300'
             }`}>
-            전체 <span className="ml-1 text-xs opacity-70">({rows.length})</span>
+            전체 <span className="ml-1 text-xs opacity-70">({clientTypeRows.length})</span>
           </button>
           {ESTIMATE_CATEGORIES.map((c) => (
             <button key={c} onClick={() => setCategoryFilter(c)}
               className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-colors ${
                 categoryFilter === c ? 'bg-violet-600 text-white' : 'bg-white text-slate-600 border border-slate-300'
               }`}>
-              {c} <span className="ml-1 text-xs opacity-70">({rows.filter((r) => r.category === c).length})</span>
+              {c} <span className="ml-1 text-xs opacity-70">({clientTypeRows.filter((r) => r.category === c).length})</span>
+            </button>
+          ))}
+          {customCategories.map((c) => (
+            <button key={c} onClick={() => setCategoryFilter(c)}
+              className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-lg transition-colors border-dashed border-2 ${
+                categoryFilter === c ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-600 border-slate-300'
+              }`}>
+              {c} <span className="ml-1 text-xs opacity-70">({clientTypeRows.filter((r) => r.category === c).length})</span>
             </button>
           ))}
         </div>
@@ -268,10 +309,25 @@ export default function EstimatePriceList() {
                     <tr key={row.id} className="bg-violet-50/40">
                       <td className="px-1 py-1.5" />
                       <td className="px-2 py-1.5">
-                        <select value={row.category} onChange={(e) => handleChangeRow(row.id, { category: e.target.value as EstimateCategory })}
-                          className={inputCls}>
-                          {ESTIMATE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                        {ESTIMATE_CATEGORIES.includes(row.category as EstimateCategory) ? (
+                          <select value={row.category}
+                            onChange={(e) => handleChangeRow(row.id, {
+                              category: e.target.value === NEW_CATEGORY_OPTION ? '' : e.target.value,
+                            })}
+                            className={inputCls}>
+                            {ESTIMATE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                            <option value={NEW_CATEGORY_OPTION}>+ 새 분류 직접 입력</option>
+                          </select>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <input value={row.category} onChange={(e) => handleChangeRow(row.id, { category: e.target.value })}
+                              placeholder="새 분류명" autoFocus className={inputCls} />
+                            <button type="button" onClick={() => handleChangeRow(row.id, { category: ESTIMATE_CATEGORIES[0] })}
+                              title="목록에서 선택" className="flex-shrink-0 text-slate-300 hover:text-violet-500 transition-colors">
+                              <List size={14} />
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="px-2 py-1.5 min-w-[160px]">
                         <input value={row.name} onChange={(e) => handleChangeRow(row.id, { name: e.target.value })}

@@ -1,4 +1,4 @@
-import type { EstimateItem } from '../../types'
+import type { EstimateCategory, EstimateItem } from '../../types'
 import { ESTIMATE_CATEGORIES } from './EstimateItemsAccordion'
 import { calculateItemExecutionTotal, calculateItemQuotedTotal, deriveMarginRate } from '../../lib/estimateCalculations'
 import { formatKRW, formatPercent } from '../../lib/format'
@@ -9,6 +9,12 @@ interface Props {
 
 export default function InternalExecutionTable({ items }: Props) {
   const selected = items.filter((i) => i.quantity > 0)
+  const categories = [
+    ...ESTIMATE_CATEGORIES,
+    ...Array.from(new Set(selected.map((i) => i.category))).filter(
+      (c) => !ESTIMATE_CATEGORIES.includes(c as EstimateCategory)
+    ),
+  ]
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
@@ -38,7 +44,7 @@ export default function InternalExecutionTable({ items }: Props) {
             {selected.length === 0 ? (
               <tr><td colSpan={13} className="px-3 py-10 text-center text-slate-400">선택된 품목이 없습니다.</td></tr>
             ) : (
-              ESTIMATE_CATEGORIES.flatMap((category) => {
+              categories.flatMap((category) => {
                 const categoryItems = selected.filter((i) => i.category === category)
                 return categoryItems.map((item) => {
                   const executionTotal = calculateItemExecutionTotal(item.execution_unit_cost, item.quantity)

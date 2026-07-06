@@ -1,4 +1,4 @@
-import type { EstimateCategory, EstimateItem, EstimateUnit } from '../types'
+import type { EstimateItem, EstimateUnit } from '../types'
 import type { EstimateTotals } from './estimateCalculations'
 
 // 고객 제출용 견적서에 들어갈 수 있는 필드만 명시적으로 나열한 타입.
@@ -6,7 +6,7 @@ import type { EstimateTotals } from './estimateCalculations'
 // 실수로 고객 화면에 노출될 수 없다.
 export interface CustomerLineItem {
   id: string
-  category: EstimateCategory
+  category: string
   name: string
   size?: string
   description?: string

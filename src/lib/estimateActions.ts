@@ -7,6 +7,7 @@ import type {
   ItemMaster,
   PricingPolicy,
   RiskOption,
+  ClientType,
 } from '../types'
 
 function todayCompact() {
@@ -130,6 +131,7 @@ export async function setEstimateStatus(id: string, status: Estimate['status']) 
 }
 
 export async function saveCustomItemToMaster(item: {
+  client_type: ClientType
   category: ItemMaster['category']
   name: string
   size?: string
@@ -139,6 +141,7 @@ export async function saveCustomItemToMaster(item: {
   quoted_unit_price: number
 }) {
   const { error } = await supabase.from('item_master').insert({
+    client_type: item.client_type,
     category: item.category,
     name: item.name,
     size: item.size ?? null,
@@ -150,11 +153,13 @@ export async function saveCustomItemToMaster(item: {
   if (error) throw error
 }
 
-export async function fetchItemMaster(): Promise<ItemMaster[]> {
+// 견적서 작성 시 선택된 고객유형의 견적단가만 불러온다.
+export async function fetchItemMaster(clientType: ClientType): Promise<ItemMaster[]> {
   const { data, error } = await supabase
     .from('item_master')
     .select('*')
     .eq('is_active', true)
+    .eq('client_type', clientType)
     .order('category')
     .order('sort_order')
   if (error) throw error
