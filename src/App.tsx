@@ -17,6 +17,8 @@ import Estimates from './pages/Estimates'
 import EstimateForm from './pages/EstimateForm'
 import EstimateDetail from './pages/EstimateDetail'
 import EstimatePriceList from './pages/EstimatePriceList'
+import Contracts from './pages/Contracts'
+import ContractForm from './pages/ContractForm'
 
 function App() {
   return (
@@ -41,6 +43,9 @@ function App() {
             <Route path="estimates/price-list" element={<EstimatePriceList />} />
             <Route path="estimates/:id" element={<EstimateDetail />} />
             <Route path="estimates/:id/edit" element={<EstimateForm />} />
+            <Route path="contracts" element={<Contracts />} />
+            <Route path="contracts/new" element={<ContractForm />} />
+            <Route path="contracts/:id/edit" element={<ContractForm />} />
           </Route>
         </Routes>
       </CategoriesProvider>

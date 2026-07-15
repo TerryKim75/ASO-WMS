@@ -11,6 +11,7 @@ import {
   Users,
   Gavel,
   FileText,
+  FileSignature,
 } from 'lucide-react'
 import { useCategories, CATEGORY_COLORS } from '../contexts/CategoriesContext'
 
@@ -20,6 +21,7 @@ const navItems = [
   { to: '/transactions', label: '입출고내역', icon: ArrowLeftRight },
   { to: '/projects', label: '프로젝트', icon: FolderKanban },
   { to: '/estimates', label: '견적서', icon: FileText },
+  { to: '/contracts', label: '계약서', icon: FileSignature },
   { to: '/staff', label: '시공인력', icon: Hammer },
   { to: '/vendors', label: '발주처', icon: Building2 },
   { to: '/work-report', label: '업무보고서', icon: ClipboardList },

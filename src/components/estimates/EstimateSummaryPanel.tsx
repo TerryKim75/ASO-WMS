@@ -34,10 +34,12 @@ export default function EstimateSummaryPanel({ totals, overheadLabel }: Props) {
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">견적 요약</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 divide-y sm:divide-y-0 divide-slate-100">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 divide-y sm:divide-y-0 divide-slate-100">
         <Tile label="실행가 합계" value={formatKRW(totals.executionTotal)} />
+        <Tile label="공급가 (품목 합계)" value={formatKRW(totals.quotedTotal)} />
         <Tile label={overheadLabel || '간접비'} value={formatKRW(totals.overheadAmount)} />
         <Tile label="리스크 비용" value={formatKRW(totals.riskAmount)} />
+        <Tile label="기업이윤" value={formatKRW(totals.companyProfitAmount)} />
         <Tile label="할인 전 공급가" value={formatKRW(totals.preDiscountSupply)} />
         <Tile label="할인금액" value={`-${formatKRW(totals.discountAmount)}`} />
         <Tile label="할인 후 공급가" value={formatKRW(totals.finalSupplyAmount)} emphasize />

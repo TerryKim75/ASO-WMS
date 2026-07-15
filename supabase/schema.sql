@@ -403,3 +403,50 @@ where p.client_type = '참가사용'
       and existing.name = p.name
       and coalesce(existing.size, '') = coalesce(p.size, '')
   );
+
+-- ============================================================
+-- 계약서(Contract) 기능 — 견적서를 불러와 발주처/시공사/계약금액을 자동 채우고
+-- 계약정보·결제정보를 정리한다. 시공사(아소시스템) 자체 정보는 코드 상수로 관리한다.
+-- ============================================================
+create table if not exists contracts (
+  id uuid default gen_random_uuid() primary key,
+  contract_number text not null unique,
+  estimate_id uuid references estimates(id) on delete set null,
+
+  client_name text not null,
+  client_contact text,
+  client_business_number text,
+  client_representative text,
+  client_address text,
+
+  exhibition_name text,
+  venue text,
+  booth_size text,
+  install_date date,
+  dismantle_date date,
+
+  total_amount numeric not null default 0,
+  contract_date date,
+  payment_terms text,
+  special_terms text,
+  notes text,
+
+  status text not null default '작성중' check (status in ('작성중','발송완료','서명완료','계산서요청','완료','취소')),
+  invoice_requested_at timestamptz,
+
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table contracts disable row level security;
+
+create index if not exists idx_contracts_estimate_id on contracts(estimate_id);
+create index if not exists idx_contracts_status on contracts(status);
+
+-- ============================================================
+-- 조정 항목에 "기업이윤"(company_profit) 추가 — 제작관리비는 공급가 기준으로 계산되도록
+-- 코드에서 변경했고(스키마 변경 없음), 여기서는 조정 유형만 확장한다.
+-- ============================================================
+alter table estimate_adjustments drop constraint if exists estimate_adjustments_adjustment_type_check;
+alter table estimate_adjustments add constraint estimate_adjustments_adjustment_type_check
+  check (adjustment_type in ('overhead', 'company_profit', 'discount'));

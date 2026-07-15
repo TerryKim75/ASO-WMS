@@ -1,8 +1,7 @@
 import { Printer } from 'lucide-react'
 import type { CustomerLineItem, CustomerSummary } from '../../lib/estimateCustomerView'
 import { formatKRW } from '../../lib/format'
-
-const ASO_ADDRESS = '서울시 금천구 가산디지탈2로 70, 대륭테크노타운 19차, 1203호'
+import { ASO_COMPANY_INFO } from '../../lib/companyInfo'
 
 export interface CustomerEstimateHeader {
   estimate_number: string
@@ -72,7 +71,7 @@ function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineI
   <div class="doc-header">
     <div class="brand">
       <img src="${logoUrl}" alt="ASO" />
-      <div class="address">${ASO_ADDRESS}</div>
+      <div class="address">${ASO_COMPANY_INFO.address}</div>
     </div>
     <div class="title">견 &nbsp; 적 &nbsp; 서</div>
   </div>
@@ -144,7 +143,7 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
         <div className="flex items-end justify-between border-b-4 border-slate-800 pb-3">
           <div>
             <img src="/images/aso-logo.png" alt="ASO" className="h-8 w-auto" />
-            <p className="text-[11px] text-slate-400 mt-1">{ASO_ADDRESS}</p>
+            <p className="text-[11px] text-slate-400 mt-1">{ASO_COMPANY_INFO.address}</p>
           </div>
           <h2 className="text-2xl font-bold tracking-[0.3em] text-slate-800">견 적 서</h2>
         </div>

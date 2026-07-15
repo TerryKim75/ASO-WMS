@@ -39,8 +39,9 @@ export function calculateEstimateQuotedTotal(
   )
 }
 
-export function calculateOverheadAmount(executionTotal: number, overheadRate: number): number {
-  return executionTotal * overheadRate
+// 제작관리비(간접비) — 실행가가 아니라 공급가(항목별 판매가 합계) 기준으로 계산한다.
+export function calculateOverheadAmount(quotedTotal: number, overheadRate: number): number {
+  return quotedTotal * overheadRate
 }
 
 export function calculateRiskAmount(executionTotal: number, selectedRiskRates: number[]): number {
@@ -48,12 +49,24 @@ export function calculateRiskAmount(executionTotal: number, selectedRiskRates: n
   return executionTotal * totalRiskRate
 }
 
+// 기업이윤 — 조정 항목 중 마지막에 추가로 입력하는 금액/비율. 공급가 기준으로 계산하며
+// 할인전공급가에 간접비/리스크비용과 함께 더해진다.
+export function calculateCompanyProfitAmount(
+  quotedTotal: number,
+  valueType: DiscountValueType,
+  value: number
+): number {
+  const amount = valueType === 'rate' ? quotedTotal * value : value
+  return Math.max(amount, 0)
+}
+
 export function calculatePreDiscountSupplyAmount(
   quotedTotal: number,
   overheadAmount: number,
-  riskAmount: number
+  riskAmount: number,
+  companyProfitAmount: number
 ): number {
-  return quotedTotal + overheadAmount + riskAmount
+  return quotedTotal + overheadAmount + riskAmount + companyProfitAmount
 }
 
 export function calculateDiscountAmount(
@@ -118,6 +131,8 @@ export interface EstimateTotalsInput {
   items: { execution_unit_cost: number; quantity: number; quoted_unit_price: number }[]
   overheadRate: number
   selectedRiskRates: number[]
+  companyProfitType: DiscountValueType
+  companyProfitValue: number
   discountType: DiscountValueType
   discountValue: number
   vatRate: number
@@ -129,6 +144,7 @@ export interface EstimateTotals {
   quotedTotal: number
   overheadAmount: number
   riskAmount: number
+  companyProfitAmount: number
   preDiscountSupply: number
   discountAmount: number
   finalSupplyAmount: number
@@ -147,9 +163,10 @@ export function calculateEstimateTotals(input: EstimateTotalsInput): EstimateTot
   }))
   const executionTotal = calculateEstimateExecutionTotal(itemsWithTotals)
   const quotedTotal = calculateEstimateQuotedTotal(itemsWithTotals)
-  const overheadAmount = calculateOverheadAmount(executionTotal, input.overheadRate)
+  const overheadAmount = calculateOverheadAmount(quotedTotal, input.overheadRate)
   const riskAmount = calculateRiskAmount(executionTotal, input.selectedRiskRates)
-  const preDiscountSupply = calculatePreDiscountSupplyAmount(quotedTotal, overheadAmount, riskAmount)
+  const companyProfitAmount = calculateCompanyProfitAmount(quotedTotal, input.companyProfitType, input.companyProfitValue)
+  const preDiscountSupply = calculatePreDiscountSupplyAmount(quotedTotal, overheadAmount, riskAmount, companyProfitAmount)
   const discountAmount = calculateDiscountAmount(preDiscountSupply, input.discountType, input.discountValue)
   const finalSupplyAmount = calculateFinalSupplyAmount(preDiscountSupply, discountAmount)
   const vatAmount = calculateVatAmount(finalSupplyAmount, input.vatRate)
@@ -163,6 +180,7 @@ export function calculateEstimateTotals(input: EstimateTotalsInput): EstimateTot
     quotedTotal,
     overheadAmount,
     riskAmount,
+    companyProfitAmount,
     preDiscountSupply,
     discountAmount,
     finalSupplyAmount,

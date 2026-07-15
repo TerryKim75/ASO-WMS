@@ -8,6 +8,7 @@ import {
   calculateEstimateQuotedTotal,
   calculateOverheadAmount,
   calculateRiskAmount,
+  calculateCompanyProfitAmount,
   calculateDiscountAmount,
   calculateFinalSupplyAmount,
   calculateVatAmount,
@@ -92,14 +93,20 @@ describe('calculateEstimateQuotedTotal', () => {
   })
 })
 
-describe('overhead / risk / discount chain', () => {
-  it('computes overhead as a rate of execution total', () => {
+describe('overhead / risk / company profit / discount chain', () => {
+  it('computes overhead(제작관리비) as a rate of 공급가(quoted total), not 실행가', () => {
     expect(calculateOverheadAmount(10_000_000, 0.05)).toBe(500_000)
   })
 
   it('sums selected risk rates and applies to execution total', () => {
     // 일정촉박 +3%, 야간설치 +3% => 6%
     expect(calculateRiskAmount(10_000_000, [0.03, 0.03])).toBe(600_000)
+  })
+
+  it('computes company profit(기업이윤) as a rate or fixed amount, floored at 0', () => {
+    expect(calculateCompanyProfitAmount(10_000_000, 'rate', 0.02)).toBe(200_000)
+    expect(calculateCompanyProfitAmount(10_000_000, 'fixed', 300_000)).toBe(300_000)
+    expect(calculateCompanyProfitAmount(10_000_000, 'fixed', -1000)).toBe(0)
   })
 
   it('clamps rate-based discount within [0, preDiscountSupply]', () => {
@@ -148,8 +155,10 @@ describe('calculateEstimateTotals (orchestrator)', () => {
     const totals = calculateEstimateTotals({
       // 실행단가 100,000 x 10 = 실행가 1,000,000 / 견적단가 181,818.18 x 10 ≒ 견적가 1,818,181.82 (이윤율 45%에 해당하는 값)
       items: [{ execution_unit_cost: 100_000, quantity: 10, quoted_unit_price: 181_818.18 }],
-      overheadRate: 0.05,
+      overheadRate: 0.05, // 공급가(견적가) 기준
       selectedRiskRates: [],
+      companyProfitType: 'rate',
+      companyProfitValue: 0,
       discountType: 'rate',
       discountValue: 0.3, // large discount, should push margin below 40% minimum
       vatRate: 0.1,
@@ -158,10 +167,11 @@ describe('calculateEstimateTotals (orchestrator)', () => {
 
     expect(totals.executionTotal).toBe(1_000_000)
     expect(totals.quotedTotal).toBeCloseTo(1_818_181.8, 0)
-    expect(totals.overheadAmount).toBe(50_000)
-    expect(totals.preDiscountSupply).toBeCloseTo(1_868_181.8, 0)
-    expect(totals.discountAmount).toBeCloseTo(560_454.5, 0)
-    expect(totals.finalSupplyAmount).toBeCloseTo(1_307_727.3, 0)
+    expect(totals.overheadAmount).toBeCloseTo(90_909.09, 1) // 견적가(공급가) 기준 5%
+    expect(totals.companyProfitAmount).toBe(0)
+    expect(totals.preDiscountSupply).toBeCloseTo(1_909_090.9, 0)
+    expect(totals.discountAmount).toBeCloseTo(572_727.27, 1)
+    expect(totals.finalSupplyAmount).toBeCloseTo(1_336_363.6, 0)
     expect(totals.margin.isBelowMinimum).toBe(true)
     expect(totals.margin.status).toBe('below')
   })
@@ -172,6 +182,8 @@ describe('calculateEstimateTotals (orchestrator)', () => {
       items: [{ execution_unit_cost: 1_000_000, quantity: 1, quoted_unit_price: 1_000_000 / 0.55 }],
       overheadRate: 0,
       selectedRiskRates: [],
+      companyProfitType: 'rate',
+      companyProfitValue: 0,
       discountType: 'rate',
       discountValue: 0,
       vatRate: 0.1,
@@ -188,6 +200,8 @@ describe('calculateEstimateTotals (orchestrator)', () => {
       items: [{ execution_unit_cost: 5_000, quantity: 2, quoted_unit_price: 8_000 }],
       overheadRate: 0,
       selectedRiskRates: [],
+      companyProfitType: 'rate',
+      companyProfitValue: 0,
       discountType: 'rate',
       discountValue: 0,
       vatRate: 0.1,
@@ -197,5 +211,25 @@ describe('calculateEstimateTotals (orchestrator)', () => {
     expect(totals.executionTotal).toBe(10_000)
     expect(totals.quotedTotal).toBe(16_000)
     expect(totals.finalSupplyAmount).toBe(16_000)
+  })
+
+  it('adds company profit (기업이윤) on top of the supply amount before discount', () => {
+    // 견적가 1,000,000 + 기업이윤 정액 200,000 = 할인전공급가 1,200,000
+    const totals = calculateEstimateTotals({
+      items: [{ execution_unit_cost: 500_000, quantity: 1, quoted_unit_price: 1_000_000 }],
+      overheadRate: 0,
+      selectedRiskRates: [],
+      companyProfitType: 'fixed',
+      companyProfitValue: 200_000,
+      discountType: 'rate',
+      discountValue: 0,
+      vatRate: 0.1,
+      overallPolicy: 참가사용정책,
+    })
+
+    expect(totals.companyProfitAmount).toBe(200_000)
+    expect(totals.preDiscountSupply).toBe(1_200_000)
+    expect(totals.finalSupplyAmount).toBe(1_200_000)
+    expect(totals.expectedProfit).toBe(700_000) // 1,200,000 - 500,000
   })
 })

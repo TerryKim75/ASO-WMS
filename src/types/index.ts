@@ -105,7 +105,7 @@ export type EstimateCategory =
   | '인건비' | '관리비' | '기타'
   | '목재' | '필름' | '영상장비' | '현장비'
 export type EstimateUnit = '개' | '회배' | '식' | '세트' | '회' | '장' | '미터' | '대' | '시간' | 'KW' | '모듈'
-export type AdjustmentType = 'overhead' | 'discount'
+export type AdjustmentType = 'overhead' | 'company_profit' | 'discount'
 export type AdjustmentValueType = 'rate' | 'fixed'
 
 export interface ItemMaster {
@@ -213,4 +213,35 @@ export interface EstimateRisk {
   name: string
   rate: number
   created_at: string
+}
+
+// ============================================================
+// 계약서 (Contract)
+// ============================================================
+
+export type ContractStatus = '작성중' | '발송완료' | '서명완료' | '계산서요청' | '완료' | '취소'
+
+export interface Contract {
+  id: string
+  contract_number: string
+  estimate_id?: string
+  client_name: string
+  client_contact?: string
+  client_business_number?: string
+  client_representative?: string
+  client_address?: string
+  exhibition_name?: string
+  venue?: string
+  booth_size?: string
+  install_date?: string
+  dismantle_date?: string
+  total_amount: number
+  contract_date?: string
+  payment_terms?: string
+  special_terms?: string
+  notes?: string
+  status: ContractStatus
+  invoice_requested_at?: string
+  created_at: string
+  updated_at: string
 }

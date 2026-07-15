@@ -103,6 +103,8 @@ export default function EstimateForm() {
   const [selectedRiskIds, setSelectedRiskIds] = useState<Set<string>>(new Set())
   const [overheadRate, setOverheadRate] = useState(0.05)
   const [overheadLabel, setOverheadLabel] = useState('제작관리비')
+  const [companyProfitType, setCompanyProfitType] = useState<DiscountValueType>('rate')
+  const [companyProfitValue, setCompanyProfitValue] = useState(0)
   const [discountType, setDiscountType] = useState<DiscountValueType>('rate')
   const [discountValue, setDiscountValue] = useState(0)
 
@@ -191,8 +193,10 @@ export default function EstimateForm() {
           })
           setItems(full.items)
           const overhead = full.adjustments.find((a) => a.adjustment_type === 'overhead')
+          const companyProfit = full.adjustments.find((a) => a.adjustment_type === 'company_profit')
           const discount = full.adjustments.find((a) => a.adjustment_type === 'discount')
           if (overhead) { setOverheadRate(overhead.value); setOverheadLabel(overhead.label || '제작관리비') }
+          if (companyProfit) { setCompanyProfitType(companyProfit.value_type); setCompanyProfitValue(companyProfit.value) }
           if (discount) { setDiscountType(discount.value_type); setDiscountValue(discount.value) }
           setSelectedRiskIds(new Set(full.risks.map((r) => r.risk_option_id).filter(Boolean) as string[]))
         } else {
@@ -223,12 +227,17 @@ export default function EstimateForm() {
       })),
       overheadRate,
       selectedRiskRates: riskOptions.filter((r) => selectedRiskIds.has(r.id)).map((r) => r.default_rate),
+      companyProfitType,
+      companyProfitValue,
       discountType,
       discountValue,
       vatRate: 0.1,
       overallPolicy,
     })
-  }, [items, overheadRate, riskOptions, selectedRiskIds, discountType, discountValue, overallPolicy])
+  }, [
+    items, overheadRate, riskOptions, selectedRiskIds, companyProfitType, companyProfitValue,
+    discountType, discountValue, overallPolicy,
+  ])
 
   // 고객유형별로 견적단가(품목마스터)가 분리되어 있으므로, 전환 시 수량은 유지한 채
   // 실행단가/견적단가만 새 고객유형 기준으로 다시 불러온다.
@@ -345,6 +354,7 @@ export default function EstimateForm() {
         }),
         adjustments: [
           { adjustment_type: 'overhead', label: overheadLabel, value_type: 'rate', value: overheadRate },
+          { adjustment_type: 'company_profit', label: undefined, value_type: companyProfitType, value: companyProfitValue },
           { adjustment_type: 'discount', label: undefined, value_type: discountType, value: discountValue },
         ],
         risks: riskOptions
@@ -476,6 +486,10 @@ export default function EstimateForm() {
               else next.add(riskId)
               return next
             })}
+            companyProfitType={companyProfitType}
+            companyProfitValue={companyProfitValue}
+            onCompanyProfitTypeChange={setCompanyProfitType}
+            onCompanyProfitValueChange={setCompanyProfitValue}
             discountType={discountType}
             discountValue={discountValue}
             onDiscountTypeChange={setDiscountType}
