@@ -7,6 +7,7 @@ import {
 import { fetchEstimateList } from '../lib/estimateActions'
 import { ASO_COMPANY_INFO, ACCOUNTING_EMAIL } from '../lib/companyInfo'
 import { formatKRW } from '../lib/format'
+import CustomerContractView from '../components/contracts/CustomerContractView'
 import type { ContractStatus, Estimate } from '../types'
 
 function plusDaysStr(days: number) {
@@ -398,6 +399,26 @@ export default function ContractForm() {
           </div>
         </div>
       </div>
+
+      <CustomerContractView
+        data={{
+          contract_number: info.contract_number,
+          client_name: info.client_name || '-',
+          client_contact: info.client_contact || undefined,
+          client_business_number: info.client_business_number || undefined,
+          client_representative: info.client_representative || undefined,
+          client_address: info.client_address || undefined,
+          exhibition_name: info.exhibition_name || undefined,
+          venue: info.venue || undefined,
+          booth_size: info.booth_size || undefined,
+          install_date: info.install_date || undefined,
+          dismantle_date: info.dismantle_date || undefined,
+          total_amount: info.total_amount,
+          contract_date: info.contract_date || undefined,
+          payment_terms: info.payment_terms || undefined,
+          special_terms: info.special_terms || undefined,
+        }}
+      />
     </div>
   )
 }

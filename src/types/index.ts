@@ -104,7 +104,9 @@ export type EstimateCategory =
   | '시스템 자재' | '마감재' | '바닥' | '그래픽' | '전기/조명' | '가구/비품' | '운송'
   | '인건비' | '관리비' | '기타'
   | '목재' | '필름' | '영상장비' | '현장비'
-export type EstimateUnit = '개' | '회배' | '식' | '세트' | '회' | '장' | '미터' | '대' | '시간' | 'KW' | '모듈'
+// 기본 제공 단위 목록(드롭다운 프리셋). item_master/estimate_items의 실제 unit 값은
+// 사용자가 직접 입력한 새 단위도 허용하므로 string이며, 이 목록에 없을 수 있다.
+export type EstimateUnit = string
 export type AdjustmentType = 'overhead' | 'company_profit' | 'discount'
 export type AdjustmentValueType = 'rate' | 'fixed'
 

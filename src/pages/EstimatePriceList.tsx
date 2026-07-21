@@ -6,11 +6,12 @@ import {
 } from '../lib/estimateActions'
 import { deriveMarginRate } from '../lib/estimateCalculations'
 import { ESTIMATE_CATEGORIES } from '../components/estimates/EstimateItemsAccordion'
+import { ESTIMATE_UNITS } from '../components/estimates/EstimateItemRow'
 import { formatKRW, formatPercent } from '../lib/format'
-import type { ClientType, EstimateCategory, EstimateUnit, ItemMaster } from '../types'
+import type { ClientType, EstimateCategory, ItemMaster } from '../types'
 
-const ESTIMATE_UNITS: EstimateUnit[] = ['개', '회배', '식', '세트', '회', '장', '미터', '대', '시간', 'KW', '모듈']
 const NEW_CATEGORY_OPTION = '__new_category__'
+const NEW_UNIT_OPTION = '__new_unit__'
 const CLIENT_TYPES: ClientType[] = ['기획사용', '참가사용']
 
 // 목록에 없는(사용자가 직접 입력한) 분류는 프리셋 뒤로 정렬한다.
@@ -338,10 +339,23 @@ export default function EstimatePriceList() {
                           placeholder="상세내용" className={inputCls} />
                       </td>
                       <td className="px-2 py-1.5">
-                        <select value={row.unit} onChange={(e) => handleChangeRow(row.id, { unit: e.target.value as EstimateUnit })}
-                          className={`${inputCls} text-center`}>
-                          {ESTIMATE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                        </select>
+                        {ESTIMATE_UNITS.includes(row.unit) ? (
+                          <select value={row.unit} onChange={(e) => handleChangeRow(row.id, {
+                            unit: e.target.value === NEW_UNIT_OPTION ? '' : e.target.value,
+                          })} className={`${inputCls} text-center`}>
+                            {ESTIMATE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                            <option value={NEW_UNIT_OPTION}>+ 새 단위 직접 입력</option>
+                          </select>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <input value={row.unit} onChange={(e) => handleChangeRow(row.id, { unit: e.target.value })}
+                              placeholder="새 단위" autoFocus className={inputCls} />
+                            <button type="button" onClick={() => handleChangeRow(row.id, { unit: ESTIMATE_UNITS[0] })}
+                              title="목록에서 선택" className="flex-shrink-0 text-slate-300 hover:text-violet-500 transition-colors">
+                              <List size={14} />
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="px-2 py-1.5">
                         <input type="number" min="0" value={row.default_execution_unit_cost}

@@ -40,7 +40,7 @@ export default function Dashboard() {
         supabase
           .from('wms_projects')
           .select('*')
-          .in('status', ['계약완료', '시공진행'])
+          .in('status', ['제안중', '계약완료', '시공진행', '완료'])
           .order('start_date', { ascending: true }),
       ])
 

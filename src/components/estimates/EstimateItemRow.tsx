@@ -1,9 +1,10 @@
-import { Trash2, Save } from 'lucide-react'
+import { Trash2, Save, List } from 'lucide-react'
 import type { EstimateItem, EstimateUnit } from '../../types'
 import { calculateItemExecutionTotal, calculateItemQuotedTotal, deriveMarginRate } from '../../lib/estimateCalculations'
 import { formatKRW, formatPercent } from '../../lib/format'
 
-const ESTIMATE_UNITS: EstimateUnit[] = ['개', '회배', '식', '세트', '회', '장', '미터', '대', '시간', 'KW', '모듈']
+export const ESTIMATE_UNITS: EstimateUnit[] = ['개', '회배', '식', '세트', '회', '장', '미터', '대', '시간', 'KW', '모듈']
+const NEW_UNIT_OPTION = '__new_unit__'
 
 interface Props {
   item: EstimateItem
@@ -31,11 +32,24 @@ export default function EstimateItemRow({ item, onChange, onRemove, onSaveToMast
         <input value={item.size || ''} onChange={(e) => onChange({ size: e.target.value })}
           placeholder="상세내용" className={inputCls} />
       </td>
-      <td className="px-2 py-1.5 min-w-[84px]">
-        <select value={item.unit} onChange={(e) => onChange({ unit: e.target.value as EstimateUnit })}
-          className={`${inputCls} text-center`}>
-          {ESTIMATE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-        </select>
+      <td className="px-2 py-1.5 min-w-[90px]">
+        {ESTIMATE_UNITS.includes(item.unit) ? (
+          <select value={item.unit} onChange={(e) => onChange({
+            unit: e.target.value === NEW_UNIT_OPTION ? '' : e.target.value,
+          })} className={`${inputCls} text-center`}>
+            {ESTIMATE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+            <option value={NEW_UNIT_OPTION}>+ 새 단위 직접 입력</option>
+          </select>
+        ) : (
+          <div className="flex items-center gap-1">
+            <input value={item.unit} onChange={(e) => onChange({ unit: e.target.value })}
+              placeholder="새 단위" autoFocus className={inputCls} />
+            <button type="button" onClick={() => onChange({ unit: ESTIMATE_UNITS[0] })}
+              title="목록에서 선택" className="flex-shrink-0 text-slate-300 hover:text-violet-500 transition-colors">
+              <List size={14} />
+            </button>
+          </div>
+        )}
       </td>
       <td className="px-2 py-1.5 min-w-[130px]">
         <input type="number" min="0" value={item.execution_unit_cost}

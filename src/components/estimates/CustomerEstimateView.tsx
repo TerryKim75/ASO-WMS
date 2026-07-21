@@ -1,7 +1,8 @@
-import { Printer } from 'lucide-react'
+import { Printer, Download } from 'lucide-react'
 import type { CustomerLineItem, CustomerSummary } from '../../lib/estimateCustomerView'
 import { formatKRW } from '../../lib/format'
 import { ASO_COMPANY_INFO } from '../../lib/companyInfo'
+import { exportCustomerEstimateToExcel } from '../../lib/estimateExcelExport'
 
 export interface CustomerEstimateHeader {
   estimate_number: string
@@ -124,6 +125,10 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
 
   const categories = Array.from(new Set(lineItems.map((i) => i.category)))
 
+  const handleExportExcel = () => {
+    void exportCustomerEstimateToExcel(header, lineItems, summary)
+  }
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 gap-3 flex-wrap">
@@ -132,6 +137,10 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
           {printDisabled && (
             <span className="text-xs text-red-600 font-medium">최소 이윤율 미달 — 승인 후 출력 가능</span>
           )}
+          <button onClick={handleExportExcel} disabled={printDisabled}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white">
+            <Download size={13} />Excel 다운로드
+          </button>
           <button onClick={handlePrint} disabled={printDisabled}
             className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-violet-600">
             <Printer size={13} />인쇄 / PDF 저장

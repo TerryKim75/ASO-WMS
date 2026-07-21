@@ -450,3 +450,13 @@ create index if not exists idx_contracts_status on contracts(status);
 alter table estimate_adjustments drop constraint if exists estimate_adjustments_adjustment_type_check;
 alter table estimate_adjustments add constraint estimate_adjustments_adjustment_type_check
   check (adjustment_type in ('overhead', 'company_profit', 'discount'));
+
+-- ============================================================
+-- 견적서/견적단가 화면에서 프리셋 외 새 단위를 직접 입력해 추가할 수 있도록
+-- unit 체크 제약조건을 제거한다(빈 문자열만 방지, 자유 텍스트 허용, category와 동일한 방식).
+-- ============================================================
+alter table item_master drop constraint if exists item_master_unit_check;
+alter table item_master add constraint item_master_unit_not_empty check (btrim(unit) <> '');
+
+alter table estimate_items drop constraint if exists estimate_items_unit_check;
+alter table estimate_items add constraint estimate_items_unit_not_empty check (btrim(unit) <> '');
