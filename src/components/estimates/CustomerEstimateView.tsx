@@ -3,6 +3,8 @@ import type { CustomerLineItem, CustomerSummary } from '../../lib/estimateCustom
 import { formatKRW } from '../../lib/format'
 import { ASO_COMPANY_INFO } from '../../lib/companyInfo'
 import { exportCustomerEstimateToExcel } from '../../lib/estimateExcelExport'
+import { ESTIMATE_CATEGORIES } from './EstimateItemsAccordion'
+import type { EstimateCategory } from '../../types'
 
 export interface CustomerEstimateHeader {
   estimate_number: string
@@ -30,8 +32,23 @@ function formatDate(date?: string) {
   return date.split('T')[0].replace(/-/g, '.')
 }
 
+// 품목의 sort_order는 카테고리별로 1부터 다시 시작하는 값이라 전체 목록을 그대로
+// sort_order로만 정렬하면 카테고리가 뒤섞일 수 있다. 내부용 실행가표와 동일하게
+// 사전 정의된 카테고리 순서(+커스텀 카테고리는 뒤에)로 다시 그룹핑해 출력 순서를 고정한다.
+function orderCategories(lineItems: CustomerLineItem[]): string[] {
+  return [
+    ...ESTIMATE_CATEGORIES,
+    ...Array.from(new Set(lineItems.map((i) => i.category))).filter(
+      (c) => !ESTIMATE_CATEGORIES.includes(c as EstimateCategory)
+    ),
+  ]
+}
+
 function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineItem[], summary: CustomerSummary) {
-  const rows = lineItems.map((item, i) => `
+  const orderedItems = orderCategories(lineItems).flatMap((category) =>
+    lineItems.filter((i) => i.category === category)
+  )
+  const rows = orderedItems.map((item, i) => `
     <tr>
       <td style="text-align:center">${i + 1}</td>
       <td>${item.category}</td>
@@ -123,7 +140,7 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
     setTimeout(() => win.print(), 400)
   }
 
-  const categories = Array.from(new Set(lineItems.map((i) => i.category)))
+  const categories = orderCategories(lineItems)
 
   const handleExportExcel = () => {
     void exportCustomerEstimateToExcel(header, lineItems, summary)

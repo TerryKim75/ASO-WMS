@@ -1,9 +1,24 @@
 import type { CustomerEstimateHeader } from '../components/estimates/CustomerEstimateView'
 import type { CustomerLineItem, CustomerSummary } from './estimateCustomerView'
+import { ESTIMATE_CATEGORIES } from '../components/estimates/EstimateItemsAccordion'
+import type { EstimateCategory } from '../types'
 
 function formatDate(date?: string) {
   if (!date) return '-'
   return date.split('T')[0].replace(/-/g, '.')
+}
+
+// 품목의 sort_order는 카테고리별로 1부터 다시 시작하는 값이라 전체 목록을 그대로
+// sort_order로만 정렬하면 카테고리가 뒤섞일 수 있다. 다른 견적서 출력 화면들과 동일하게
+// 사전 정의된 카테고리 순서(+커스텀 카테고리는 뒤에)로 다시 그룹핑해 순서를 고정한다.
+function orderLineItems(lineItems: CustomerLineItem[]): CustomerLineItem[] {
+  const categories = [
+    ...ESTIMATE_CATEGORIES,
+    ...Array.from(new Set(lineItems.map((i) => i.category))).filter(
+      (c) => !ESTIMATE_CATEGORIES.includes(c as EstimateCategory)
+    ),
+  ]
+  return categories.flatMap((category) => lineItems.filter((i) => i.category === category))
 }
 
 export async function exportCustomerEstimateToExcel(
@@ -23,7 +38,7 @@ export async function exportCustomerEstimateToExcel(
     ['구분', '항목', '상세내용', '수량', '단위', '공급가'],
   ]
 
-  lineItems.forEach((item) => {
+  orderLineItems(lineItems).forEach((item) => {
     rows.push([item.category, item.name, item.size || '-', item.quantity, item.unit, item.quoted_amount])
   })
 
