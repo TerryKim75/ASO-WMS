@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -45,9 +45,11 @@ export default function Sidebar() {
   const renderNavItem = (item: { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean }) => {
     const isInventory = item.to === '/inventory'
     const showCategories = isInventory && categories.length > 0
+    const isDashboard = item.to === '/'
+    const extraSpacingCls = item.to === '/projects' ? 'mt-[6px]' : ''
 
     return (
-      <li key={item.to}>
+      <li className={extraSpacingCls}>
         <div className="flex items-center gap-0.5">
           <NavLink
             to={item.to}
@@ -60,7 +62,7 @@ export default function Sidebar() {
               }`
             }
           >
-            <item.icon size={18} />
+            <item.icon size={18} className={isDashboard ? 'text-violet-400 animate-spin [animation-duration:3s]' : ''} />
             {item.label}
           </NavLink>
           {showCategories && (
@@ -123,7 +125,12 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 p-4">
         <ul className="space-y-1">
-          {navItems.map((item) => renderNavItem(item))}
+          {navItems.map((item) => (
+            <Fragment key={item.to}>
+              {item.to === '/bids' && <li className="my-2 border-t border-slate-700" aria-hidden="true" />}
+              {renderNavItem(item)}
+            </Fragment>
+          ))}
         </ul>
 
         <ul className="space-y-1 mt-6 pt-4 border-t border-slate-700">
