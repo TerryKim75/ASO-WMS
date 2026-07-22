@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { CategoriesProvider } from './contexts/CategoriesContext'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
-import Calendar from './pages/Calendar'
 import Inventory from './pages/Inventory'
 import Transactions from './pages/Transactions'
 import Projects from './pages/Projects'
@@ -31,7 +30,6 @@ function App() {
           <Route path="bid/:projectId" element={<BidForm />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
-            <Route path="calendar" element={<Calendar />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="transactions" element={<Transactions />} />
             <Route path="projects" element={<Projects />} />

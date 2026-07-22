@@ -1,11 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, isToday } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { supabase } from '../lib/supabase'
-import type { WmsProject } from '../types'
-import { STATUS_COLORS } from './Projects'
+import type { WmsProject } from '../../types'
+import { STATUS_COLORS } from '../../pages/Projects'
 
 type ScheduleType = '전시' | '시공' | '철거'
 
@@ -101,20 +100,15 @@ function getWeekEvents(week: (Date | null)[], events: ScheduleEvent[]): WeekBar[
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 const VISIBLE_LANES = 3
 
-export default function Calendar() {
+interface Props {
+  projects: WmsProject[]
+  loading: boolean
+}
+
+export default function ScheduleCalendar({ projects, loading }: Props) {
   const navigate = useNavigate()
-  const [projects, setProjects] = useState<WmsProject[]>([])
-  const [loading, setLoading] = useState(true)
   const [calMonth, setCalMonth] = useState(new Date())
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from('wms_projects').select('*').neq('status', '취소')
-      setProjects(data || [])
-      setLoading(false)
-    })()
-  }, [])
 
   const events = useMemo<ScheduleEvent[]>(() => {
     const list: ScheduleEvent[] = []
@@ -138,14 +132,7 @@ export default function Calendar() {
   const selectedEvents = selectedProject ? events.filter((e) => e.project.id === selectedProjectId) : []
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-5">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-800">캘린더</h1>
-          <p className="text-slate-500 text-sm mt-0.5">프로젝트별 전시일정 · 시공일정 · 철거일정을 한눈에 확인</p>
-        </div>
-      </div>
-
+    <div className="space-y-4 md:space-y-5">
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-4 md:px-5 py-3 border-b border-slate-100 flex-wrap gap-2">
           <div className="flex items-center gap-2">
