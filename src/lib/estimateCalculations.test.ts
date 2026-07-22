@@ -9,6 +9,7 @@ import {
   calculateOverheadAmount,
   calculateRiskAmount,
   calculateCompanyProfitAmount,
+  calculatePublicDuesAmount,
   calculateDiscountAmount,
   calculateFinalSupplyAmount,
   calculateVatAmount,
@@ -109,6 +110,10 @@ describe('overhead / risk / company profit / discount chain', () => {
     expect(calculateCompanyProfitAmount(10_000_000, 'fixed', -1000)).toBe(0)
   })
 
+  it('computes public dues(공과잡비) as a rate of 실행가(execution total), not 공급가 — default 5%', () => {
+    expect(calculatePublicDuesAmount(10_000_000, 0.05)).toBe(500_000)
+  })
+
   it('clamps rate-based discount within [0, preDiscountSupply]', () => {
     expect(calculateDiscountAmount(1_000_000, 'rate', 0.1)).toBe(100_000)
     expect(calculateDiscountAmount(1_000_000, 'fixed', 5_000_000)).toBe(1_000_000)
@@ -159,6 +164,7 @@ describe('calculateEstimateTotals (orchestrator)', () => {
       selectedRiskRates: [],
       companyProfitType: 'rate',
       companyProfitValue: 0,
+      publicDuesRate: 0,
       discountType: 'rate',
       discountValue: 0.3, // large discount, should push margin below 40% minimum
       vatRate: 0.1,
@@ -184,6 +190,7 @@ describe('calculateEstimateTotals (orchestrator)', () => {
       selectedRiskRates: [],
       companyProfitType: 'rate',
       companyProfitValue: 0,
+      publicDuesRate: 0,
       discountType: 'rate',
       discountValue: 0,
       vatRate: 0.1,
@@ -202,6 +209,7 @@ describe('calculateEstimateTotals (orchestrator)', () => {
       selectedRiskRates: [],
       companyProfitType: 'rate',
       companyProfitValue: 0,
+      publicDuesRate: 0,
       discountType: 'rate',
       discountValue: 0,
       vatRate: 0.1,
@@ -221,6 +229,7 @@ describe('calculateEstimateTotals (orchestrator)', () => {
       selectedRiskRates: [],
       companyProfitType: 'fixed',
       companyProfitValue: 200_000,
+      publicDuesRate: 0,
       discountType: 'rate',
       discountValue: 0,
       vatRate: 0.1,
@@ -231,5 +240,25 @@ describe('calculateEstimateTotals (orchestrator)', () => {
     expect(totals.preDiscountSupply).toBe(1_200_000)
     expect(totals.finalSupplyAmount).toBe(1_200_000)
     expect(totals.expectedProfit).toBe(700_000) // 1,200,000 - 500,000
+  })
+
+  it('adds public dues(공과잡비) based on 실행가, independent of 공급가-based overhead', () => {
+    // 실행가 1,000,000 @ 5% = 공과잡비 50,000, 견적가(공급가)는 별도로 1,500,000
+    const totals = calculateEstimateTotals({
+      items: [{ execution_unit_cost: 1_000_000, quantity: 1, quoted_unit_price: 1_500_000 }],
+      overheadRate: 0,
+      selectedRiskRates: [],
+      companyProfitType: 'rate',
+      companyProfitValue: 0,
+      publicDuesRate: 0.05,
+      discountType: 'rate',
+      discountValue: 0,
+      vatRate: 0.1,
+      overallPolicy: 참가사용정책,
+    })
+
+    expect(totals.publicDuesAmount).toBe(50_000)
+    expect(totals.preDiscountSupply).toBe(1_550_000) // 1,500,000 + 50,000
+    expect(totals.finalSupplyAmount).toBe(1_550_000)
   })
 })

@@ -107,7 +107,7 @@ export type EstimateCategory =
 // 기본 제공 단위 목록(드롭다운 프리셋). item_master/estimate_items의 실제 unit 값은
 // 사용자가 직접 입력한 새 단위도 허용하므로 string이며, 이 목록에 없을 수 있다.
 export type EstimateUnit = string
-export type AdjustmentType = 'overhead' | 'company_profit' | 'discount'
+export type AdjustmentType = 'overhead' | 'company_profit' | 'public_dues' | 'discount'
 export type AdjustmentValueType = 'rate' | 'fixed'
 
 export interface ItemMaster {
@@ -246,4 +246,42 @@ export interface Contract {
   invoice_requested_at?: string
   created_at: string
   updated_at: string
+}
+
+// ============================================================
+// 고객관리 (Client)
+// ============================================================
+
+export interface Client {
+  id: string
+  name: string
+  industry?: string
+  manager?: string
+  contact_name?: string
+  phone?: string
+  email?: string
+  invoice_email?: string
+  address?: string
+  business_reg_url?: string
+  notes?: string
+  created_at: string
+}
+
+// ============================================================
+// 전시목록 (ExhibitionListItem)
+// ============================================================
+
+export interface ExhibitionListItem {
+  id: string
+  name: string
+  venue?: string
+  city?: string
+  country?: string
+  start_date?: string
+  end_date?: string
+  organizer?: string
+  official_contractor?: string
+  participants?: string
+  notes?: string
+  created_at: string
 }

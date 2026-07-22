@@ -32,6 +32,7 @@ export function useEstimateWithTotals(id: string | undefined) {
   const overheadLabel = full?.adjustments.find((a) => a.adjustment_type === 'overhead')?.label || '제작관리비'
   const discountAdj = full?.adjustments.find((a) => a.adjustment_type === 'discount')
   const companyProfitAdj = full?.adjustments.find((a) => a.adjustment_type === 'company_profit')
+  const publicDuesAdj = full?.adjustments.find((a) => a.adjustment_type === 'public_dues')
 
   const totals: EstimateTotals | null = useMemo(() => {
     if (!full) return null
@@ -43,12 +44,13 @@ export function useEstimateWithTotals(id: string | undefined) {
       selectedRiskRates: full.risks.map((r) => r.rate),
       companyProfitType: companyProfitAdj?.value_type || 'rate',
       companyProfitValue: companyProfitAdj?.value || 0,
+      publicDuesRate: publicDuesAdj?.value ?? 0.05,
       discountType: discountAdj?.value_type || 'rate',
       discountValue: discountAdj?.value || 0,
       vatRate: full.estimate.vat_rate,
       overallPolicy,
     })
-  }, [full, overheadRate, discountAdj, companyProfitAdj, overallPolicy])
+  }, [full, overheadRate, discountAdj, companyProfitAdj, publicDuesAdj, overallPolicy])
 
   return { full, totals, overheadLabel, loading, reload: load }
 }

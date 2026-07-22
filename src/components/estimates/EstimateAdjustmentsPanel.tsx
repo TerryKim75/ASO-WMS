@@ -1,5 +1,6 @@
 import type { RiskOption } from '../../types'
 import type { DiscountValueType } from '../../lib/estimateCalculations'
+import { formatKRW } from '../../lib/format'
 
 interface Props {
   overheadRate: number
@@ -13,6 +14,9 @@ interface Props {
   companyProfitValue: number
   onCompanyProfitTypeChange: (type: DiscountValueType) => void
   onCompanyProfitValueChange: (value: number) => void
+  publicDuesRate: number
+  publicDuesAmount: number
+  onPublicDuesRateChange: (rate: number) => void
   discountType: DiscountValueType
   discountValue: number
   onDiscountTypeChange: (type: DiscountValueType) => void
@@ -26,11 +30,12 @@ export default function EstimateAdjustmentsPanel({
   overheadRate, overheadLabel, onOverheadRateChange, onOverheadLabelChange,
   riskOptions, selectedRiskIds, onToggleRisk,
   companyProfitType, companyProfitValue, onCompanyProfitTypeChange, onCompanyProfitValueChange,
+  publicDuesRate, publicDuesAmount, onPublicDuesRateChange,
   discountType, discountValue, onDiscountTypeChange, onDiscountValueChange,
 }: Props) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-5 space-y-5">
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">간접비 · 리스크 · 기업이윤 · 할인</p>
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">간접비 · 공과잡비 · 리스크 · 기업이윤 · 할인</p>
 
       {/* 간접비 */}
       <div className="grid grid-cols-2 gap-3">
@@ -44,6 +49,22 @@ export default function EstimateAdjustmentsPanel({
           <input type="number" min="0" max="100" step="0.5" value={Math.round(overheadRate * 1000) / 10}
             onChange={(e) => onOverheadRateChange((Number(e.target.value) || 0) / 100)}
             className={`${inputCls} w-full`} />
+        </div>
+      </div>
+
+      {/* 공과잡비 — 실행가 총합 기준으로 자동 계산(기본 5%) */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">공과잡비율 (%, 실행가 기준)</label>
+          <input type="number" min="0" max="100" step="0.5" value={Math.round(publicDuesRate * 1000) / 10}
+            onChange={(e) => onPublicDuesRateChange((Number(e.target.value) || 0) / 100)}
+            className={`${inputCls} w-full`} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">공과잡비 (자동 계산)</label>
+          <div className={`${inputCls} w-full bg-slate-50 text-slate-700 font-medium`}>
+            {formatKRW(publicDuesAmount)}
+          </div>
         </div>
       </div>
 

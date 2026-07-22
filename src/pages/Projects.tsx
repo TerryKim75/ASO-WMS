@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ChevronRight, Edit2 } from 'lucide-react'
+import { Plus, ChevronRight, Edit2, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { WmsProject, ProjectStatus } from '../types'
 import AddProjectModal from '../components/AddProjectModal'
@@ -70,6 +70,12 @@ export default function Projects() {
   }, [])
 
   useEffect(() => { fetchProjects() }, [fetchProjects])
+
+  const handleDelete = async (project: WmsProject) => {
+    if (!confirm(`'${project.name}' 프로젝트를 삭제하시겠습니까?\n관련 입출고 내역은 삭제되지 않고 프로젝트 연결만 해제됩니다.`)) return
+    await supabase.from('wms_projects').delete().eq('id', project.id)
+    fetchProjects()
+  }
 
   const filtered = projects.filter((p) => statusFilter === 'all' || p.status === statusFilter)
 
@@ -152,6 +158,12 @@ export default function Projects() {
                     >
                       <Edit2 size={15} />
                     </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(project) }}
+                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                     <ChevronRight size={18} className="text-slate-300" />
                   </div>
                 </div>
@@ -195,7 +207,7 @@ export default function Projects() {
                 <th className="text-left px-4 py-3.5 font-semibold text-slate-600">참가사</th>
                 <th className="text-left px-4 py-3.5 font-semibold text-slate-600">담당</th>
                 <th className="text-left px-4 py-3.5 font-semibold text-slate-600">전시일정</th>
-                <th className="text-center px-4 py-3.5 font-semibold text-slate-600">진행현황</th>
+                <th className="text-center px-4 py-3.5 font-semibold text-slate-600 whitespace-nowrap">진행현황</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-red-700">출고</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-blue-700">반입</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-orange-700">손실</th>
@@ -245,7 +257,7 @@ export default function Projects() {
                         ) : <span className="text-slate-300">-</span>}
                       </td>
                       <td className="px-4 py-3.5 text-center">
-                        <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${statusClass}`}>
+                        <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${statusClass}`}>
                           {project.status}
                         </span>
                       </td>
@@ -264,6 +276,12 @@ export default function Projects() {
                             className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                           >
                             <Edit2 size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(project) }}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                            <Trash2 size={14} />
                           </button>
                           <ChevronRight size={16} className="text-slate-400" />
                         </div>

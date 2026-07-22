@@ -38,6 +38,7 @@ export default function EstimateSummaryPanel({ totals, overheadLabel }: Props) {
         <Tile label="실행가 합계" value={formatKRW(totals.executionTotal)} />
         <Tile label="공급가 (품목 합계)" value={formatKRW(totals.quotedTotal)} />
         <Tile label={overheadLabel || '간접비'} value={formatKRW(totals.overheadAmount)} />
+        <Tile label="공과잡비" value={formatKRW(totals.publicDuesAmount)} />
         <Tile label="리스크 비용" value={formatKRW(totals.riskAmount)} />
         <Tile label="기업이윤" value={formatKRW(totals.companyProfitAmount)} />
         <Tile label="할인 전 공급가" value={formatKRW(totals.preDiscountSupply)} />

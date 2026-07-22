@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Save, Mail, ArrowLeft } from 'lucide-react'
+import { Save, Mail, ArrowLeft, Eye } from 'lucide-react'
 import {
   generateContractNumber, fetchContract, saveContract, markInvoiceRequested,
 } from '../lib/contractActions'
@@ -84,6 +84,7 @@ export default function ContractForm() {
   const [saving, setSaving] = useState(false)
   const [info, setInfo] = useState<ContractInfoState>(emptyInfo())
   const [estimates, setEstimates] = useState<Estimate[]>([])
+  const [showPreview, setShowPreview] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -230,6 +231,10 @@ export default function ContractForm() {
           <p className="text-slate-500 text-sm mt-0.5">{info.contract_number}</p>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => setShowPreview(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors">
+            <Eye size={15} />미리보기
+          </button>
           <button onClick={handleIssueInvoice}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors">
             <Mail size={15} />계산서 발행
@@ -400,25 +405,32 @@ export default function ContractForm() {
         </div>
       </div>
 
-      <CustomerContractView
-        data={{
-          contract_number: info.contract_number,
-          client_name: info.client_name || '-',
-          client_contact: info.client_contact || undefined,
-          client_business_number: info.client_business_number || undefined,
-          client_representative: info.client_representative || undefined,
-          client_address: info.client_address || undefined,
-          exhibition_name: info.exhibition_name || undefined,
-          venue: info.venue || undefined,
-          booth_size: info.booth_size || undefined,
-          install_date: info.install_date || undefined,
-          dismantle_date: info.dismantle_date || undefined,
-          total_amount: info.total_amount,
-          contract_date: info.contract_date || undefined,
-          payment_terms: info.payment_terms || undefined,
-          special_terms: info.special_terms || undefined,
-        }}
-      />
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowPreview(false)}>
+          <div className="w-full max-w-4xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <CustomerContractView
+              onClose={() => setShowPreview(false)}
+              data={{
+                contract_number: info.contract_number,
+                client_name: info.client_name || '-',
+                client_contact: info.client_contact || undefined,
+                client_business_number: info.client_business_number || undefined,
+                client_representative: info.client_representative || undefined,
+                client_address: info.client_address || undefined,
+                exhibition_name: info.exhibition_name || undefined,
+                venue: info.venue || undefined,
+                booth_size: info.booth_size || undefined,
+                install_date: info.install_date || undefined,
+                dismantle_date: info.dismantle_date || undefined,
+                total_amount: info.total_amount,
+                contract_date: info.contract_date || undefined,
+                payment_terms: info.payment_terms || undefined,
+                special_terms: info.special_terms || undefined,
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

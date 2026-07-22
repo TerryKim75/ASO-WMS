@@ -49,6 +49,11 @@ export function calculateRiskAmount(executionTotal: number, selectedRiskRates: n
   return executionTotal * totalRiskRate
 }
 
+// 공과잡비 — 제작관리비(공급가 기준)와 별개로, 실행가 총합 기준으로 자동 계산되는 관리비 항목(기본 5%).
+export function calculatePublicDuesAmount(executionTotal: number, publicDuesRate: number): number {
+  return executionTotal * publicDuesRate
+}
+
 // 기업이윤 — 조정 항목 중 마지막에 추가로 입력하는 금액/비율. 공급가 기준으로 계산하며
 // 할인전공급가에 간접비/리스크비용과 함께 더해진다.
 export function calculateCompanyProfitAmount(
@@ -64,9 +69,10 @@ export function calculatePreDiscountSupplyAmount(
   quotedTotal: number,
   overheadAmount: number,
   riskAmount: number,
-  companyProfitAmount: number
+  companyProfitAmount: number,
+  publicDuesAmount: number
 ): number {
-  return quotedTotal + overheadAmount + riskAmount + companyProfitAmount
+  return quotedTotal + overheadAmount + riskAmount + companyProfitAmount + publicDuesAmount
 }
 
 export function calculateDiscountAmount(
@@ -133,6 +139,7 @@ export interface EstimateTotalsInput {
   selectedRiskRates: number[]
   companyProfitType: DiscountValueType
   companyProfitValue: number
+  publicDuesRate: number
   discountType: DiscountValueType
   discountValue: number
   vatRate: number
@@ -145,6 +152,7 @@ export interface EstimateTotals {
   overheadAmount: number
   riskAmount: number
   companyProfitAmount: number
+  publicDuesAmount: number
   preDiscountSupply: number
   discountAmount: number
   finalSupplyAmount: number
@@ -166,7 +174,8 @@ export function calculateEstimateTotals(input: EstimateTotalsInput): EstimateTot
   const overheadAmount = calculateOverheadAmount(quotedTotal, input.overheadRate)
   const riskAmount = calculateRiskAmount(executionTotal, input.selectedRiskRates)
   const companyProfitAmount = calculateCompanyProfitAmount(quotedTotal, input.companyProfitType, input.companyProfitValue)
-  const preDiscountSupply = calculatePreDiscountSupplyAmount(quotedTotal, overheadAmount, riskAmount, companyProfitAmount)
+  const publicDuesAmount = calculatePublicDuesAmount(executionTotal, input.publicDuesRate)
+  const preDiscountSupply = calculatePreDiscountSupplyAmount(quotedTotal, overheadAmount, riskAmount, companyProfitAmount, publicDuesAmount)
   const discountAmount = calculateDiscountAmount(preDiscountSupply, input.discountType, input.discountValue)
   const finalSupplyAmount = calculateFinalSupplyAmount(preDiscountSupply, discountAmount)
   const vatAmount = calculateVatAmount(finalSupplyAmount, input.vatRate)
@@ -181,6 +190,7 @@ export function calculateEstimateTotals(input: EstimateTotalsInput): EstimateTot
     overheadAmount,
     riskAmount,
     companyProfitAmount,
+    publicDuesAmount,
     preDiscountSupply,
     discountAmount,
     finalSupplyAmount,

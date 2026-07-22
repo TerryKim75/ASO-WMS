@@ -1,12 +1,17 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
+  CalendarDays,
+  Landmark,
   Package,
   ArrowLeftRight,
   FolderKanban,
   Hammer,
   Building2,
+  Contact,
   ChevronRight,
+  ChevronDown,
   ClipboardList,
   Users,
   Gavel,
@@ -17,21 +22,26 @@ import { useCategories, CATEGORY_COLORS } from '../contexts/CategoriesContext'
 
 const navItems = [
   { to: '/', label: '대시보드', icon: LayoutDashboard, exact: true },
-  { to: '/inventory', label: '재고현황', icon: Package },
-  { to: '/transactions', label: '입출고내역', icon: ArrowLeftRight },
+  { to: '/calendar', label: '캘린더', icon: CalendarDays },
   { to: '/projects', label: '프로젝트', icon: FolderKanban },
+  { to: '/exhibition-list', label: '전시목록', icon: Landmark },
   { to: '/estimates', label: '견적서', icon: FileText },
   { to: '/contracts', label: '계약서', icon: FileSignature },
   { to: '/staff', label: '시공인력', icon: Hammer },
   { to: '/vendors', label: '발주처', icon: Building2 },
+  { to: '/clients', label: '고객관리', icon: Contact },
   { to: '/work-report', label: '업무보고서', icon: ClipboardList },
   { to: '/bids', label: '시공입찰', icon: Gavel },
   { to: '/employees', label: '직원정보', icon: Users },
+  { to: '/inventory', label: '재고현황', icon: Package },
+  { to: '/transactions', label: '입출고내역', icon: ArrowLeftRight },
 ]
 
 export default function Sidebar() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { categories } = useCategories()
+  const [categoriesOpen, setCategoriesOpen] = useState(location.pathname.startsWith('/inventory'))
 
   return (
     <aside className="w-64 min-h-screen bg-slate-800 text-white flex flex-col flex-shrink-0">
@@ -57,53 +67,63 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 p-4">
         <ul className="space-y-1">
-          {navItems.map((item) => (
-            <li key={item.to}>
-              <NavLink
-                to={item.to}
-                end={item.exact}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-violet-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                  }`
-                }
-              >
-                <item.icon size={18} />
-                {item.label}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
+          {navItems.map((item) => {
+            const isInventory = item.to === '/inventory'
+            const showCategories = isInventory && categories.length > 0
 
-        {/* Category Shortcuts */}
-        {categories.length > 0 && (
-          <div className="mt-8">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">
-              자재 카테고리
-            </p>
-            <ul className="space-y-1">
-              {categories.map((cat) => {
-                const dotClass = CATEGORY_COLORS[cat.color]?.dot || 'bg-slate-400'
-                return (
-                  <li key={cat.id}>
+            return (
+              <li key={item.to}>
+                <div className="flex items-center gap-0.5">
+                  <NavLink
+                    to={item.to}
+                    end={item.exact}
+                    className={({ isActive }) =>
+                      `flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-violet-600 text-white'
+                          : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                      }`
+                    }
+                  >
+                    <item.icon size={18} />
+                    {item.label}
+                  </NavLink>
+                  {showCategories && (
                     <button
-                      onClick={() => navigate(`/inventory?category=${encodeURIComponent(cat.name)}`)}
-                      className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+                      onClick={() => setCategoriesOpen((v) => !v)}
+                      className="p-2 text-slate-400 hover:text-white transition-colors flex-shrink-0"
+                      title="자재 카테고리"
                     >
-                      <div className="flex items-center gap-2.5">
-                        <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-                        {cat.name}
-                      </div>
-                      <ChevronRight size={14} className="opacity-50" />
+                      <ChevronDown size={14} className={`transition-transform ${categoriesOpen ? '' : '-rotate-90'}`} />
                     </button>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        )}
+                  )}
+                </div>
+
+                {showCategories && categoriesOpen && (
+                  <ul className="mt-1 ml-5 pl-3 border-l border-slate-700 space-y-0.5">
+                    {categories.map((cat) => {
+                      const dotClass = CATEGORY_COLORS[cat.color]?.dot || 'bg-slate-400'
+                      return (
+                        <li key={cat.id}>
+                          <button
+                            onClick={() => navigate(`/inventory?category=${encodeURIComponent(cat.name)}`)}
+                            className="w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+                              {cat.name}
+                            </div>
+                            <ChevronRight size={12} className="opacity-50" />
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </li>
+            )
+          })}
+        </ul>
       </nav>
 
       {/* Footer */}

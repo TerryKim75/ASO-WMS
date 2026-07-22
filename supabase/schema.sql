@@ -460,3 +460,52 @@ alter table item_master add constraint item_master_unit_not_empty check (btrim(u
 
 alter table estimate_items drop constraint if exists estimate_items_unit_check;
 alter table estimate_items add constraint estimate_items_unit_not_empty check (btrim(unit) <> '');
+
+-- ============================================================
+-- 조정 항목에 "공과잡비"(public_dues) 추가 — 제작관리비(공급가 기준)와 별개로,
+-- 실행가 총합 기준으로 자동 계산되는 관리비 항목(기본 5%).
+-- ============================================================
+alter table estimate_adjustments drop constraint if exists estimate_adjustments_adjustment_type_check;
+alter table estimate_adjustments add constraint estimate_adjustments_adjustment_type_check
+  check (adjustment_type in ('overhead', 'company_profit', 'public_dues', 'discount'));
+
+-- ============================================================
+-- 고객관리(Clients) — 참가사/기획사 등 거래 고객사 마스터 목록
+-- ============================================================
+create table if not exists clients (
+  id uuid default gen_random_uuid() primary key,
+  name text not null unique,
+  industry text,
+  manager text,
+  contact_name text,
+  phone text,
+  email text,
+  invoice_email text,
+  address text,
+  business_reg_url text,
+  notes text,
+  created_at timestamptz default now()
+);
+alter table clients disable row level security;
+create index if not exists idx_clients_name on clients(name);
+
+-- ============================================================
+-- 전시목록(Exhibition List) — 전시회 자체의 마스터 정보(장소/기간/주최사 등).
+-- 프로젝트(wms_projects.exhibition)와는 이름으로 매칭되는 별도 참조 테이블이다.
+-- ============================================================
+create table if not exists exhibition_list (
+  id uuid default gen_random_uuid() primary key,
+  name text not null unique,
+  venue text,
+  city text,
+  country text,
+  start_date date,
+  end_date date,
+  organizer text,
+  official_contractor text,
+  participants text,
+  notes text,
+  created_at timestamptz default now()
+);
+alter table exhibition_list disable row level security;
+create index if not exists idx_exhibition_list_start_date on exhibition_list(start_date);

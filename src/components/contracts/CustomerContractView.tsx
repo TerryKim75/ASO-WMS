@@ -1,4 +1,4 @@
-import { Printer } from 'lucide-react'
+import { Printer, X } from 'lucide-react'
 import { formatKRW } from '../../lib/format'
 import { ASO_COMPANY_INFO } from '../../lib/companyInfo'
 
@@ -22,11 +22,19 @@ export interface ContractPrintData {
 
 interface Props {
   data: ContractPrintData
+  onClose?: () => void
 }
 
 function formatDate(date?: string) {
   if (!date) return '-'
   return date.split('T')[0].replace(/-/g, '.')
+}
+
+// 계약금액은 VAT 포함 금액으로 입력받으므로, 공급가액/부가세로 역산해 표시한다.
+function splitVat(totalAmount: number) {
+  const supply = Math.round(totalAmount / 1.1)
+  const vat = totalAmount - supply
+  return { supply, vat }
 }
 
 const GENERAL_TERMS = [
@@ -39,6 +47,7 @@ const GENERAL_TERMS = [
 
 function buildPrintHtml(data: ContractPrintData) {
   const logoUrl = `${window.location.origin}/images/aso-logo.png`
+  const { supply, vat } = splitVat(data.total_amount)
 
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
   <title>계약서 - ${data.contract_number}</title>
@@ -50,14 +59,22 @@ function buildPrintHtml(data: ContractPrintData) {
     .brand .address { margin-top: 4px; font-size: 10px; color: #94a3b8; }
     .title { font-size: 24px; font-weight: 700; letter-spacing: 6px; }
     .sub { text-align: center; color: #64748b; font-size: 12px; margin-bottom: 18px; }
-    table.parties { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
-    table.parties th, table.parties td { border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 12px; }
-    table.parties th { background: #f1f5f9; font-weight: 600; width: 90px; text-align: left; }
-    table.parties td.party-title { background: #eef2ff; font-weight: 700; text-align: center; width: 60px; }
+    .parties-row { display: flex; gap: 14px; margin-bottom: 18px; }
+    .party-box { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+    .party-box .party-label { background: #eef2ff; font-weight: 700; padding: 7px 10px; font-size: 13px; white-space: nowrap; }
+    .party-box table { width: 100%; border-collapse: collapse; }
+    .party-box th, .party-box td { border-top: 1px solid #e2e8f0; padding: 6px 10px; font-size: 12px; }
+    .party-box th { background: #f8fafc; font-weight: 600; width: 78px; text-align: left; }
     section { margin-bottom: 14px; }
     .article-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
     .article-body { font-size: 12px; color: #334155; white-space: pre-wrap; line-height: 1.5; }
-    .amount-box { font-size: 18px; font-weight: 700; text-align: center; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 4px; }
+    .amount-box { display: flex; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-bottom: 4px; }
+    .amount-cell { flex: 1; text-align: center; padding: 10px; border-left: 1px solid #e2e8f0; }
+    .amount-cell:first-child { border-left: none; }
+    .amount-cell .label { font-size: 11px; color: #94a3b8; margin-bottom: 2px; }
+    .amount-cell .value { font-size: 15px; font-weight: 700; }
+    .amount-cell.total { background: #f8fafc; }
+    .amount-cell.total .value { color: #6d28d9; font-size: 17px; }
     .sign-block { margin-top: 28px; display: flex; justify-content: space-between; gap: 24px; }
     .sign-col { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px; }
     .sign-col .role { font-weight: 700; margin-bottom: 8px; }
@@ -74,16 +91,26 @@ function buildPrintHtml(data: ContractPrintData) {
   </div>
   <p class="sub">계약번호: ${data.contract_number} &nbsp;|&nbsp; 계약일자: ${formatDate(data.contract_date)}</p>
 
-  <table class="parties">
-    <tr><td class="party-title" rowspan="4">갑<br/>(발주처)</td><th>상호</th><td>${data.client_name}</td></tr>
-    <tr><th>사업자번호</th><td>${data.client_business_number || '-'}</td></tr>
-    <tr><th>대표자</th><td>${data.client_representative || '-'}</td></tr>
-    <tr><th>주소/연락처</th><td>${data.client_address || '-'} ${data.client_contact ? `(${data.client_contact})` : ''}</td></tr>
-    <tr><td class="party-title" rowspan="4">을<br/>(시공사)</td><th>상호</th><td>${ASO_COMPANY_INFO.name}</td></tr>
-    <tr><th>사업자번호</th><td>${ASO_COMPANY_INFO.businessNumber}</td></tr>
-    <tr><th>대표자</th><td>${ASO_COMPANY_INFO.representative}</td></tr>
-    <tr><th>주소/연락처</th><td>${ASO_COMPANY_INFO.address} (${ASO_COMPANY_INFO.phone})</td></tr>
-  </table>
+  <div class="parties-row">
+    <div class="party-box">
+      <div class="party-label">갑 (발주처)</div>
+      <table>
+        <tr><th>상호</th><td>${data.client_name}</td></tr>
+        <tr><th>사업자번호</th><td>${data.client_business_number || '-'}</td></tr>
+        <tr><th>대표자</th><td>${data.client_representative || '-'}</td></tr>
+        <tr><th>주소/연락처</th><td>${data.client_address || '-'} ${data.client_contact ? `(${data.client_contact})` : ''}</td></tr>
+      </table>
+    </div>
+    <div class="party-box">
+      <div class="party-label">을 (시공사)</div>
+      <table>
+        <tr><th>상호</th><td>${ASO_COMPANY_INFO.name}</td></tr>
+        <tr><th>사업자번호</th><td>${ASO_COMPANY_INFO.businessNumber}</td></tr>
+        <tr><th>대표자</th><td>${ASO_COMPANY_INFO.representative}</td></tr>
+        <tr><th>주소/연락처</th><td>${ASO_COMPANY_INFO.address} (${ASO_COMPANY_INFO.phone})</td></tr>
+      </table>
+    </div>
+  </div>
 
   <section>
     <div class="article-title">제1조 (계약의 목적)</div>
@@ -97,7 +124,11 @@ function buildPrintHtml(data: ContractPrintData) {
 
   <section>
     <div class="article-title">제2조 (계약금액)</div>
-    <div class="amount-box">일금 ${formatKRW(data.total_amount)} (VAT 포함)</div>
+    <div class="amount-box">
+      <div class="amount-cell"><div class="label">공급가액</div><div class="value">${formatKRW(supply)}</div></div>
+      <div class="amount-cell"><div class="label">부가세</div><div class="value">${formatKRW(vat)}</div></div>
+      <div class="amount-cell total"><div class="label">총계</div><div class="value">${formatKRW(data.total_amount)}</div></div>
+    </div>
   </section>
 
   <section>
@@ -136,7 +167,9 @@ function buildPrintHtml(data: ContractPrintData) {
   </body></html>`
 }
 
-export default function CustomerContractView({ data }: Props) {
+export default function CustomerContractView({ data, onClose }: Props) {
+  const { supply, vat } = splitVat(data.total_amount)
+
   const handlePrint = () => {
     const html = buildPrintHtml(data)
     const win = window.open('', '_blank', 'width=800,height=900')
@@ -150,10 +183,17 @@ export default function CustomerContractView({ data }: Props) {
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 gap-3 flex-wrap">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">고객 제출용 계약서 미리보기</p>
-        <button onClick={handlePrint}
-          className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors">
-          <Printer size={13} />인쇄 / PDF 저장
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handlePrint}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors">
+            <Printer size={13} />인쇄 / PDF 저장
+          </button>
+          {onClose && (
+            <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+              <X size={18} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-5 md:p-8 space-y-5">
@@ -168,45 +208,53 @@ export default function CustomerContractView({ data }: Props) {
           계약번호 {data.contract_number} · 계약일자 {formatDate(data.contract_date)}
         </p>
 
-        <div className="overflow-x-auto border border-slate-200 rounded-lg">
-          <table className="w-full text-sm">
-            <tbody className="divide-y divide-slate-100">
-              <tr>
-                <td rowSpan={4} className="bg-indigo-50 text-center font-bold w-14 px-2 text-xs">갑<br />(발주처)</td>
-                <td className="bg-slate-50 text-xs text-slate-500 w-24 px-3 py-1.5">상호</td>
-                <td className="px-3 py-1.5">{data.client_name}</td>
-              </tr>
-              <tr>
-                <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">사업자번호</td>
-                <td className="px-3 py-1.5">{data.client_business_number || '-'}</td>
-              </tr>
-              <tr>
-                <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">대표자</td>
-                <td className="px-3 py-1.5">{data.client_representative || '-'}</td>
-              </tr>
-              <tr>
-                <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">주소/연락처</td>
-                <td className="px-3 py-1.5">{data.client_address || '-'} {data.client_contact && `(${data.client_contact})`}</td>
-              </tr>
-              <tr>
-                <td rowSpan={4} className="bg-indigo-50 text-center font-bold w-14 px-2 text-xs">을<br />(시공사)</td>
-                <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">상호</td>
-                <td className="px-3 py-1.5">{ASO_COMPANY_INFO.name}</td>
-              </tr>
-              <tr>
-                <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">사업자번호</td>
-                <td className="px-3 py-1.5">{ASO_COMPANY_INFO.businessNumber}</td>
-              </tr>
-              <tr>
-                <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">대표자</td>
-                <td className="px-3 py-1.5">{ASO_COMPANY_INFO.representative}</td>
-              </tr>
-              <tr>
-                <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">주소/연락처</td>
-                <td className="px-3 py-1.5">{ASO_COMPANY_INFO.address} ({ASO_COMPANY_INFO.phone})</td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <div className="bg-indigo-50 px-3 py-2 font-bold text-sm text-slate-800 whitespace-nowrap">갑 (발주처)</div>
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-slate-100">
+                <tr>
+                  <td className="bg-slate-50 text-xs text-slate-500 w-24 px-3 py-1.5">상호</td>
+                  <td className="px-3 py-1.5">{data.client_name}</td>
+                </tr>
+                <tr>
+                  <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">사업자번호</td>
+                  <td className="px-3 py-1.5">{data.client_business_number || '-'}</td>
+                </tr>
+                <tr>
+                  <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">대표자</td>
+                  <td className="px-3 py-1.5">{data.client_representative || '-'}</td>
+                </tr>
+                <tr>
+                  <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">주소/연락처</td>
+                  <td className="px-3 py-1.5">{data.client_address || '-'} {data.client_contact && `(${data.client_contact})`}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <div className="bg-indigo-50 px-3 py-2 font-bold text-sm text-slate-800 whitespace-nowrap">을 (시공사)</div>
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-slate-100">
+                <tr>
+                  <td className="bg-slate-50 text-xs text-slate-500 w-24 px-3 py-1.5">상호</td>
+                  <td className="px-3 py-1.5">{ASO_COMPANY_INFO.name}</td>
+                </tr>
+                <tr>
+                  <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">사업자번호</td>
+                  <td className="px-3 py-1.5">{ASO_COMPANY_INFO.businessNumber}</td>
+                </tr>
+                <tr>
+                  <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">대표자</td>
+                  <td className="px-3 py-1.5">{ASO_COMPANY_INFO.representative}</td>
+                </tr>
+                <tr>
+                  <td className="bg-slate-50 text-xs text-slate-500 px-3 py-1.5">주소/연락처</td>
+                  <td className="px-3 py-1.5">{ASO_COMPANY_INFO.address} ({ASO_COMPANY_INFO.phone})</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div>
@@ -220,8 +268,19 @@ export default function CustomerContractView({ data }: Props) {
 
         <div>
           <p className="font-semibold text-sm text-slate-800 mb-1">제2조 (계약금액)</p>
-          <div className="text-center text-lg font-bold py-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-            일금 {formatKRW(data.total_amount)} (VAT 포함)
+          <div className="flex border border-slate-200 rounded-lg overflow-hidden divide-x divide-slate-200">
+            <div className="flex-1 text-center py-2.5">
+              <p className="text-[11px] text-slate-400">공급가액</p>
+              <p className="font-bold text-slate-700">{formatKRW(supply)}</p>
+            </div>
+            <div className="flex-1 text-center py-2.5">
+              <p className="text-[11px] text-slate-400">부가세</p>
+              <p className="font-bold text-slate-700">{formatKRW(vat)}</p>
+            </div>
+            <div className="flex-1 text-center py-2.5 bg-slate-50">
+              <p className="text-[11px] text-slate-400">총계</p>
+              <p className="font-bold text-lg text-violet-700">{formatKRW(data.total_amount)}</p>
+            </div>
           </div>
         </div>
 
