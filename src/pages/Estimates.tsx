@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ChevronRight, AlertTriangle, Tag } from 'lucide-react'
-import { fetchEstimateList } from '../lib/estimateActions'
+import { Plus, ChevronRight, AlertTriangle, Tag, Trash2 } from 'lucide-react'
+import { fetchEstimateList, deleteEstimate } from '../lib/estimateActions'
 import { formatKRW, formatPercent } from '../lib/format'
 import EstimateDetailModal from '../components/estimates/EstimateDetailModal'
 import type { Estimate, EstimateStatus, ClientType } from '../types'
@@ -42,6 +42,12 @@ export default function Estimates() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const handleDelete = async (estimate: Estimate) => {
+    if (!confirm(`'${estimate.client_name}' (${estimate.estimate_number}) 견적서를 삭제하시겠습니까?`)) return
+    await deleteEstimate(estimate.id)
+    load()
+  }
 
   const filtered = estimates.filter((e) => statusFilter === 'all' || e.status === statusFilter)
 
@@ -122,7 +128,13 @@ export default function Estimates() {
                   </div>
                   <p className="text-xs text-slate-400 mt-1">{formatDate(estimate.created_at)}</p>
                 </div>
-                <ChevronRight size={18} className="text-slate-300 flex-shrink-0" />
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(estimate) }}
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                    <Trash2 size={15} />
+                  </button>
+                  <ChevronRight size={18} className="text-slate-300" />
+                </div>
               </div>
               <div className="grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-100">
                 <div className="text-center">
@@ -209,8 +221,14 @@ export default function Estimates() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 text-center">
-                      <ChevronRight size={16} className="text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(estimate) }}
+                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                          <Trash2 size={14} />
+                        </button>
+                        <ChevronRight size={16} className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
                     </td>
                   </tr>
                 ))

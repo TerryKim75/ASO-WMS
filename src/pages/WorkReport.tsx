@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
-const MEMBERS = ['김태환', '고연호', '김종혜']
+const MEMBERS = ['김태환', '김종혜']
 const STORAGE_KEY = 'aso_report_user'
 
 type Tab = 'daily' | 'weekly'

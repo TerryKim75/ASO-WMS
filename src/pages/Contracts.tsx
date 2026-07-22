@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ChevronRight, Mail } from 'lucide-react'
-import { fetchContractList } from '../lib/contractActions'
+import { Plus, ChevronRight, Mail, Trash2 } from 'lucide-react'
+import { fetchContractList, deleteContract } from '../lib/contractActions'
 import { formatKRW } from '../lib/format'
 import type { Contract, ContractStatus } from '../types'
 
@@ -39,6 +39,12 @@ export default function Contracts() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const handleDelete = async (contract: Contract) => {
+    if (!confirm(`'${contract.client_name}' (${contract.contract_number}) 계약서를 삭제하시겠습니까?`)) return
+    await deleteContract(contract.id)
+    load()
+  }
 
   const filtered = contracts.filter((c) => statusFilter === 'all' || c.status === statusFilter)
 
@@ -107,7 +113,13 @@ export default function Contracts() {
                   </div>
                   <p className="text-xs text-slate-400 mt-1">{formatDate(contract.contract_date || contract.created_at)}</p>
                 </div>
-                <ChevronRight size={18} className="text-slate-300 flex-shrink-0" />
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(contract) }}
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                    <Trash2 size={15} />
+                  </button>
+                  <ChevronRight size={18} className="text-slate-300" />
+                </div>
               </div>
               <div className="mt-3 pt-3 border-t border-slate-100 text-right">
                 <p className="text-xs text-slate-400">계약금액</p>
@@ -164,8 +176,14 @@ export default function Contracts() {
                         {contract.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 text-center">
-                      <ChevronRight size={16} className="text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(contract) }}
+                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                          <Trash2 size={14} />
+                        </button>
+                        <ChevronRight size={16} className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
                     </td>
                   </tr>
                 ))

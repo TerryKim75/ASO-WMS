@@ -122,6 +122,9 @@ export interface ItemMaster {
   quoted_unit_price: number
   sort_order: number
   is_active: boolean
+  // 기획사용/참가사용 짝 품목의 반대편 item_master.id — 분류/품목명/상세내용/단위/실행단가는
+  // 짝끼리 동기화되고 견적단가(quoted_unit_price)만 각자 별도로 입력한다.
+  paired_item_id?: string
   created_at: string
 }
 

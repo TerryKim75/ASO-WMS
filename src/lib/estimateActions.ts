@@ -190,6 +190,16 @@ export async function deleteItemMasterRow(id: string) {
   if (error) throw error
 }
 
+// 엑셀 업로드로 견적단가 전체를 교체한다 — 기존 품목을 모두 삭제한 뒤 새 목록을 삽입한다.
+// 호출 전에 반드시 파괴적 작업임을 사용자에게 확인받아야 한다.
+export async function replaceAllItemMaster(rows: ItemMasterDraft[]): Promise<void> {
+  const { error: deleteError } = await supabase.from('item_master').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  if (deleteError) throw deleteError
+  if (rows.length === 0) return
+  const { error: insertError } = await supabase.from('item_master').insert(rows)
+  if (insertError) throw insertError
+}
+
 export async function fetchPricingPolicies(): Promise<PricingPolicy[]> {
   const { data, error } = await supabase.from('pricing_policies').select('*')
   if (error) throw error

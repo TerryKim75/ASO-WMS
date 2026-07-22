@@ -509,3 +509,31 @@ create table if not exists exhibition_list (
 );
 alter table exhibition_list disable row level security;
 create index if not exists idx_exhibition_list_start_date on exhibition_list(start_date);
+
+-- ============================================================
+-- client-files 스토리지 버킷 anon 접근 허용 — 고객사 사업자등록증 업로드가
+-- "new row violates row-level security policy" 오류로 실패하던 문제 수정.
+-- project-files 등 기존 버킷과 동일하게 anon 역할에 대해 전체 허용한다.
+-- ============================================================
+drop policy if exists "client-files anon select" on storage.objects;
+create policy "client-files anon select" on storage.objects
+  for select using (bucket_id = 'client-files');
+
+drop policy if exists "client-files anon insert" on storage.objects;
+create policy "client-files anon insert" on storage.objects
+  for insert with check (bucket_id = 'client-files');
+
+drop policy if exists "client-files anon update" on storage.objects;
+create policy "client-files anon update" on storage.objects
+  for update using (bucket_id = 'client-files');
+
+drop policy if exists "client-files anon delete" on storage.objects;
+create policy "client-files anon delete" on storage.objects
+  for delete using (bucket_id = 'client-files');
+
+-- ============================================================
+-- 견적단가 화면에서 기획사용/참가사용 품목을 짝지어 관리하기 위한 자기참조 컬럼.
+-- 한쪽에 품목을 추가하면 반대쪽에도 동일 항목이 생성되고, 분류/품목명/상세내용/
+-- 단위/실행단가는 서로 동기화되며 견적단가(판매가)만 각자 별도로 입력한다.
+-- ============================================================
+alter table item_master add column if not exists paired_item_id uuid references item_master(id) on delete set null;

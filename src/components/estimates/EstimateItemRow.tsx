@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Trash2, Save, List } from 'lucide-react'
 import type { EstimateItem, EstimateUnit } from '../../types'
 import { calculateItemExecutionTotal, calculateItemQuotedTotal, deriveMarginRate } from '../../lib/estimateCalculations'
@@ -17,6 +18,9 @@ const inputCls =
   'w-full border border-slate-200 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-violet-400'
 
 export default function EstimateItemRow({ item, onChange, onRemove, onSaveToMaster }: Props) {
+  // 값이 프리셋과 우연히 일치해도(예: 신규 단위 "개당" 입력 중 "개"만 쳤을 때) 드롭다운으로
+  // 되돌아가지 않도록, 프리셋/직접입력 모드를 값에서 매번 유추하지 않고 별도 상태로 고정한다.
+  const [customUnitMode, setCustomUnitMode] = useState(() => !ESTIMATE_UNITS.includes(item.unit))
   const executionTotal = calculateItemExecutionTotal(item.execution_unit_cost, item.quantity)
   const quotedTotal = calculateItemQuotedTotal(item.quoted_unit_price, item.quantity)
   const marginRate = deriveMarginRate(executionTotal, quotedTotal)
@@ -33,10 +37,11 @@ export default function EstimateItemRow({ item, onChange, onRemove, onSaveToMast
           placeholder="상세내용" className={inputCls} />
       </td>
       <td className="px-2 py-1.5 min-w-[90px]">
-        {ESTIMATE_UNITS.includes(item.unit) ? (
-          <select value={item.unit} onChange={(e) => onChange({
-            unit: e.target.value === NEW_UNIT_OPTION ? '' : e.target.value,
-          })} className={`${inputCls} text-center`}>
+        {!customUnitMode ? (
+          <select value={item.unit} onChange={(e) => {
+            if (e.target.value === NEW_UNIT_OPTION) { setCustomUnitMode(true); onChange({ unit: '' }); return }
+            onChange({ unit: e.target.value })
+          }} className={`${inputCls} text-center`}>
             {ESTIMATE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
             <option value={NEW_UNIT_OPTION}>+ 새 단위 직접 입력</option>
           </select>
@@ -44,7 +49,7 @@ export default function EstimateItemRow({ item, onChange, onRemove, onSaveToMast
           <div className="flex items-center gap-1">
             <input value={item.unit} onChange={(e) => onChange({ unit: e.target.value })}
               placeholder="새 단위" autoFocus className={inputCls} />
-            <button type="button" onClick={() => onChange({ unit: ESTIMATE_UNITS[0] })}
+            <button type="button" onClick={() => { setCustomUnitMode(false); onChange({ unit: ESTIMATE_UNITS[0] }) }}
               title="목록에서 선택" className="flex-shrink-0 text-slate-300 hover:text-violet-500 transition-colors">
               <List size={14} />
             </button>

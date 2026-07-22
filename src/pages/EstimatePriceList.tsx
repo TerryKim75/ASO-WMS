@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Save, Trash2, Pencil, Check, ArrowLeft, GripVertical, List } from 'lucide-react'
+import { Plus, Save, Trash2, Pencil, Check, ArrowLeft, GripVertical, List, Link2, Download, Upload } from 'lucide-react'
 import {
-  fetchItemMasterForAdmin, upsertItemMasterRows, deleteItemMasterRow, type ItemMasterDraft,
+  fetchItemMasterForAdmin, upsertItemMasterRows, deleteItemMasterRow, replaceAllItemMaster,
+  type ItemMasterDraft,
 } from '../lib/estimateActions'
 import { deriveMarginRate } from '../lib/estimateCalculations'
+import { exportItemMasterToExcel, parseItemMasterExcelFile, ItemMasterImportError } from '../lib/itemMasterExcel'
 import { ESTIMATE_CATEGORIES } from '../components/estimates/EstimateItemsAccordion'
 import { ESTIMATE_UNITS } from '../components/estimates/EstimateItemRow'
 import { formatKRW, formatPercent } from '../lib/format'
@@ -20,19 +22,59 @@ function categoryOrderIndex(category: string): number {
   return idx === -1 ? ESTIMATE_CATEGORIES.length : idx
 }
 
-const emptyRow = (clientType: ClientType, category: string): ItemMaster => ({
-  id: crypto.randomUUID(),
-  client_type: clientType,
-  category,
-  name: '',
-  size: '',
-  unit: '개',
-  default_execution_unit_cost: 0,
-  quoted_unit_price: 0,
-  sort_order: 999,
-  is_active: true,
-  created_at: '',
-})
+const otherClientType = (ct: ClientType): ClientType => (ct === '참가사용' ? '기획사용' : '참가사용')
+
+// 분류/품목명/상세내용/단위/실행단가는 기획사용·참가사용 짝 사이에 동기화되는 "공통 항목".
+// 견적단가(quoted_unit_price)만 각자 별도로 입력한다.
+const SHARED_FIELDS: (keyof ItemMaster)[] = ['category', 'name', 'size', 'unit', 'default_execution_unit_cost']
+
+function emptyRow(clientType: ClientType, category: string): ItemMaster {
+  return {
+    id: crypto.randomUUID(),
+    client_type: clientType,
+    category,
+    name: '',
+    size: '',
+    unit: '개',
+    default_execution_unit_cost: 0,
+    quoted_unit_price: 0,
+    sort_order: 999,
+    is_active: true,
+    created_at: '',
+  }
+}
+
+function buildDraftsFromParsedRows(parsed: {
+  client_type: ClientType; category: string; name: string; size: string; unit: string
+  default_execution_unit_cost: number; quoted_unit_price: number
+}[]): ItemMasterDraft[] {
+  const sortCounters = new Map<string, number>()
+  const withIds = parsed.map((p) => {
+    const groupKey = `${p.client_type}|${p.category}`
+    const order = sortCounters.get(groupKey) ?? 0
+    sortCounters.set(groupKey, order + 1)
+    return { ...p, id: crypto.randomUUID(), sort_order: order }
+  })
+
+  const idByKey = new Map<string, string>()
+  withIds.forEach((p) => {
+    idByKey.set(`${p.client_type}::${p.category}|${p.name}|${p.size}`, p.id)
+  })
+
+  return withIds.map((p) => ({
+    id: p.id,
+    client_type: p.client_type,
+    category: p.category,
+    name: p.name,
+    size: p.size || undefined,
+    unit: p.unit,
+    default_execution_unit_cost: p.default_execution_unit_cost,
+    quoted_unit_price: p.quoted_unit_price,
+    sort_order: p.sort_order,
+    is_active: true,
+    paired_item_id: idByKey.get(`${otherClientType(p.client_type)}::${p.category}|${p.name}|${p.size}`),
+  }))
+}
 
 const inputCls =
   'w-full border border-slate-200 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-violet-400'
@@ -43,12 +85,18 @@ export default function EstimatePriceList() {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [clientTypeFilter, setClientTypeFilter] = useState<ClientType>('참가사용')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
   const [editingIds, setEditingIds] = useState<Set<string>>(new Set())
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
+  // 값이 프리셋과 우연히 일치해도(예: 신규 단위 "개당" 입력 중 "개"만 쳤을 때) 드롭다운으로
+  // 되돌아가지 않도록, 프리셋/직접입력 모드를 값에서 매번 유추하지 않고 별도 상태로 고정한다.
+  const [customCategoryIds, setCustomCategoryIds] = useState<Set<string>>(new Set())
+  const [customUnitIds, setCustomUnitIds] = useState<Set<string>>(new Set())
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -56,6 +104,8 @@ export default function EstimatePriceList() {
       const data = await fetchItemMasterForAdmin()
       setRows(data)
       setSavedIds(new Set(data.map((r) => r.id)))
+      setCustomCategoryIds(new Set(data.filter((r) => !ESTIMATE_CATEGORIES.includes(r.category as EstimateCategory)).map((r) => r.id)))
+      setCustomUnitIds(new Set(data.filter((r) => !ESTIMATE_UNITS.includes(r.unit)).map((r) => r.id)))
     } finally {
       setLoading(false)
     }
@@ -90,13 +140,27 @@ export default function EstimatePriceList() {
 
   const handleAddRow = () => {
     const category = categoryFilter === 'all' ? ESTIMATE_CATEGORIES[0] : categoryFilter
-    const row = emptyRow(clientTypeFilter, category)
-    setRows((prev) => [row, ...prev])
-    setEditingIds((prev) => new Set(prev).add(row.id))
+    const primary = emptyRow(clientTypeFilter, category)
+    const secondary = emptyRow(otherClientType(clientTypeFilter), category)
+    primary.paired_item_id = secondary.id
+    secondary.paired_item_id = primary.id
+    setRows((prev) => [primary, secondary, ...prev])
+    setEditingIds((prev) => new Set(prev).add(primary.id).add(secondary.id))
   }
 
   const handleChangeRow = (id: string, patch: Partial<ItemMaster>) => {
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+    setRows((prev) => {
+      const target = prev.find((r) => r.id === id)
+      const sharedPatch = Object.fromEntries(
+        Object.entries(patch).filter(([k]) => SHARED_FIELDS.includes(k as keyof ItemMaster))
+      )
+      const hasSharedChange = Object.keys(sharedPatch).length > 0
+      return prev.map((r) => {
+        if (r.id === id) return { ...r, ...patch }
+        if (hasSharedChange && target?.paired_item_id && r.id === target.paired_item_id) return { ...r, ...sharedPatch }
+        return r
+      })
+    })
   }
 
   const handleToggleEdit = (id: string) => {
@@ -141,7 +205,10 @@ export default function EstimatePriceList() {
         return
       }
     }
-    setRows((prev) => prev.filter((r) => r.id !== id))
+    setRows((prev) => prev
+      .filter((r) => r.id !== id)
+      .map((r) => (r.paired_item_id === id ? { ...r, paired_item_id: undefined } : r))
+    )
     setEditingIds((prev) => {
       const next = new Set(prev)
       next.delete(id)
@@ -166,6 +233,7 @@ export default function EstimatePriceList() {
         quoted_unit_price: r.quoted_unit_price,
         sort_order: r.sort_order,
         is_active: r.is_active,
+        paired_item_id: r.paired_item_id,
       }))
       await upsertItemMasterRows(drafts)
       await load()
@@ -176,6 +244,38 @@ export default function EstimatePriceList() {
       alert('저장에 실패했습니다. (동일 분류/품목명/상세내용 조합이 중복되지 않았는지 확인해주세요)')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleExportExcel = () => {
+    void exportItemMasterToExcel(rows)
+  }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    if (!window.confirm('기존데이타가 삭제되고, 업로드 데이타로 교체됩니다. 진행하시겠습니까?')) return
+
+    setUploading(true)
+    try {
+      const parsed = await parseItemMasterExcelFile(file)
+      const drafts = buildDraftsFromParsedRows(parsed)
+      await replaceAllItemMaster(drafts)
+      await load()
+      setEditingIds(new Set())
+      alert(`업로드 완료 — 총 ${drafts.length}개 품목으로 교체되었습니다.`)
+    } catch (err) {
+      console.error(err)
+      const message = err instanceof ItemMasterImportError ? err.message : '업로드에 실패했습니다.'
+      alert(message)
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -190,7 +290,16 @@ export default function EstimatePriceList() {
           <h1 className="text-xl md:text-2xl font-bold text-slate-800">견적단가</h1>
           <p className="text-slate-500 text-sm mt-0.5">분류별 실행단가·견적단가 관리 — 견적서 작성 시 자동 적용됩니다</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileSelected} />
+          <button onClick={handleUploadClick} disabled={uploading}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50">
+            <Upload size={15} />{uploading ? '업로드 중...' : '엑셀 업로드'}
+          </button>
+          <button onClick={handleExportExcel}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">
+            <Download size={15} />엑셀 다운로드
+          </button>
           <button onClick={handleAddRow}
             className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors">
             <Plus size={15} />품목 추가
@@ -212,6 +321,10 @@ export default function EstimatePriceList() {
           </button>
         ))}
       </div>
+      <p className="text-xs text-slate-400 -mt-2">
+        <Link2 size={11} className="inline mr-1 -mt-0.5" />
+        품목을 추가하면 반대쪽 고객유형에도 동일한 품목이 자동으로 생기며, 견적단가만 각자 별도로 입력하면 됩니다.
+      </p>
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-2 flex-wrap">
@@ -268,6 +381,7 @@ export default function EstimatePriceList() {
                   const marginRate = deriveMarginRate(row.default_execution_unit_cost, row.quoted_unit_price)
                   const isEditing = editingIds.has(row.id)
                   const marginCls = row.quoted_unit_price === 0 ? 'text-slate-300' : marginRate < 0 ? 'text-red-600' : 'text-green-700'
+                  const isPaired = Boolean(row.paired_item_id)
 
                   if (!isEditing) {
                     return (
@@ -284,7 +398,10 @@ export default function EstimatePriceList() {
                       >
                         <td className="px-1 py-2 text-slate-300 w-6"><GripVertical size={14} /></td>
                         <td className="px-2 py-2 text-slate-600">{row.category}</td>
-                        <td className="px-2 py-2 min-w-[160px] font-medium text-slate-800">{row.name}</td>
+                        <td className="px-2 py-2 min-w-[160px] font-medium text-slate-800">
+                          {row.name}
+                          {isPaired && <Link2 size={11} className="inline ml-1 text-violet-300" />}
+                        </td>
                         <td className="px-2 py-2 text-slate-500">{row.size || '-'}</td>
                         <td className="px-2 py-2 text-center text-slate-500">{row.unit}</td>
                         <td className="px-2 py-2 text-right text-slate-600 whitespace-nowrap">{formatKRW(row.default_execution_unit_cost)}</td>
@@ -310,11 +427,16 @@ export default function EstimatePriceList() {
                     <tr key={row.id} className="bg-violet-50/40">
                       <td className="px-1 py-1.5" />
                       <td className="px-2 py-1.5">
-                        {ESTIMATE_CATEGORIES.includes(row.category as EstimateCategory) ? (
+                        {!customCategoryIds.has(row.id) ? (
                           <select value={row.category}
-                            onChange={(e) => handleChangeRow(row.id, {
-                              category: e.target.value === NEW_CATEGORY_OPTION ? '' : e.target.value,
-                            })}
+                            onChange={(e) => {
+                              if (e.target.value === NEW_CATEGORY_OPTION) {
+                                setCustomCategoryIds((prev) => new Set(prev).add(row.id))
+                                handleChangeRow(row.id, { category: '' })
+                                return
+                              }
+                              handleChangeRow(row.id, { category: e.target.value })
+                            }}
                             className={inputCls}>
                             {ESTIMATE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                             <option value={NEW_CATEGORY_OPTION}>+ 새 분류 직접 입력</option>
@@ -323,7 +445,10 @@ export default function EstimatePriceList() {
                           <div className="flex items-center gap-1">
                             <input value={row.category} onChange={(e) => handleChangeRow(row.id, { category: e.target.value })}
                               placeholder="새 분류명" autoFocus className={inputCls} />
-                            <button type="button" onClick={() => handleChangeRow(row.id, { category: ESTIMATE_CATEGORIES[0] })}
+                            <button type="button" onClick={() => {
+                              setCustomCategoryIds((prev) => { const next = new Set(prev); next.delete(row.id); return next })
+                              handleChangeRow(row.id, { category: ESTIMATE_CATEGORIES[0] })
+                            }}
                               title="목록에서 선택" className="flex-shrink-0 text-slate-300 hover:text-violet-500 transition-colors">
                               <List size={14} />
                             </button>
@@ -339,10 +464,17 @@ export default function EstimatePriceList() {
                           placeholder="상세내용" className={inputCls} />
                       </td>
                       <td className="px-2 py-1.5">
-                        {ESTIMATE_UNITS.includes(row.unit) ? (
-                          <select value={row.unit} onChange={(e) => handleChangeRow(row.id, {
-                            unit: e.target.value === NEW_UNIT_OPTION ? '' : e.target.value,
-                          })} className={`${inputCls} text-center`}>
+                        {!customUnitIds.has(row.id) ? (
+                          <select value={row.unit}
+                            onChange={(e) => {
+                              if (e.target.value === NEW_UNIT_OPTION) {
+                                setCustomUnitIds((prev) => new Set(prev).add(row.id))
+                                handleChangeRow(row.id, { unit: '' })
+                                return
+                              }
+                              handleChangeRow(row.id, { unit: e.target.value })
+                            }}
+                            className={`${inputCls} text-center`}>
                             {ESTIMATE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                             <option value={NEW_UNIT_OPTION}>+ 새 단위 직접 입력</option>
                           </select>
@@ -350,7 +482,10 @@ export default function EstimatePriceList() {
                           <div className="flex items-center gap-1">
                             <input value={row.unit} onChange={(e) => handleChangeRow(row.id, { unit: e.target.value })}
                               placeholder="새 단위" autoFocus className={inputCls} />
-                            <button type="button" onClick={() => handleChangeRow(row.id, { unit: ESTIMATE_UNITS[0] })}
+                            <button type="button" onClick={() => {
+                              setCustomUnitIds((prev) => { const next = new Set(prev); next.delete(row.id); return next })
+                              handleChangeRow(row.id, { unit: ESTIMATE_UNITS[0] })
+                            }}
                               title="목록에서 선택" className="flex-shrink-0 text-slate-300 hover:text-violet-500 transition-colors">
                               <List size={14} />
                             </button>
