@@ -5,10 +5,12 @@ import {
   generateContractNumber, fetchContract, saveContract, markInvoiceRequested,
 } from '../lib/contractActions'
 import { fetchEstimateList } from '../lib/estimateActions'
+import { fetchClients, fetchExhibitionListItems } from '../lib/lookupData'
 import { ASO_COMPANY_INFO, ACCOUNTING_EMAIL } from '../lib/companyInfo'
 import { formatKRW } from '../lib/format'
 import CustomerContractView from '../components/contracts/CustomerContractView'
-import type { ContractStatus, Estimate } from '../types'
+import AutocompleteInput from '../components/AutocompleteInput'
+import type { ContractStatus, Estimate, Client, ExhibitionListItem } from '../types'
 
 function plusDaysStr(days: number) {
   const d = new Date()
@@ -84,7 +86,14 @@ export default function ContractForm() {
   const [saving, setSaving] = useState(false)
   const [info, setInfo] = useState<ContractInfoState>(emptyInfo())
   const [estimates, setEstimates] = useState<Estimate[]>([])
+  const [clients, setClients] = useState<Client[]>([])
+  const [exhibitions, setExhibitions] = useState<ExhibitionListItem[]>([])
   const [showPreview, setShowPreview] = useState(false)
+
+  useEffect(() => {
+    fetchClients().then(setClients).catch(() => {})
+    fetchExhibitionListItems().then(setExhibitions).catch(() => {})
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -278,7 +287,18 @@ export default function ContractForm() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">발주처명 *</label>
-                <input value={info.client_name} onChange={(e) => setInfo({ ...info, client_name: e.target.value })}
+                <AutocompleteInput value={info.client_name}
+                  onChange={(v) => setInfo((prev) => ({ ...prev, client_name: v }))}
+                  onSelectOption={(name) => {
+                    const c = clients.find((cl) => cl.name === name)
+                    setInfo((prev) => ({
+                      ...prev,
+                      client_name: name,
+                      client_contact: c?.phone || prev.client_contact,
+                      client_address: c?.address || prev.client_address,
+                    }))
+                  }}
+                  options={clients.map((c) => c.name)}
                   className={`${inputCls} w-full`} />
               </div>
               <div>
@@ -322,7 +342,13 @@ export default function ContractForm() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">전시회명</label>
-                <input value={info.exhibition_name} onChange={(e) => setInfo({ ...info, exhibition_name: e.target.value })}
+                <AutocompleteInput value={info.exhibition_name}
+                  onChange={(v) => setInfo((prev) => ({ ...prev, exhibition_name: v }))}
+                  onSelectOption={(name) => {
+                    const ex = exhibitions.find((e) => e.name === name)
+                    setInfo((prev) => ({ ...prev, exhibition_name: name, venue: ex?.venue || prev.venue }))
+                  }}
+                  options={exhibitions.map((e) => e.name)}
                   className={`${inputCls} w-full`} />
               </div>
               <div>

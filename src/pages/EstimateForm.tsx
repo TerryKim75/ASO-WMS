@@ -8,11 +8,13 @@ import {
 import {
   calculateEstimateTotals, deriveMarginRate, type DiscountValueType, type MarginPolicy,
 } from '../lib/estimateCalculations'
+import { fetchClients, fetchExhibitionListItems } from '../lib/lookupData'
 import EstimateItemsAccordion from '../components/estimates/EstimateItemsAccordion'
 import EstimateAdjustmentsPanel from '../components/estimates/EstimateAdjustmentsPanel'
 import EstimateSummaryPanel from '../components/estimates/EstimateSummaryPanel'
+import AutocompleteInput from '../components/AutocompleteInput'
 import type {
-  ClientType, EstimateStatus, EstimateItem, ItemMaster, PricingPolicy, RiskOption,
+  ClientType, EstimateStatus, EstimateItem, ItemMaster, PricingPolicy, RiskOption, Client, ExhibitionListItem,
 } from '../types'
 
 const DEFAULT_INCLUDED_SCOPE = [
@@ -98,6 +100,8 @@ export default function EstimateForm() {
   const [saving, setSaving] = useState(false)
   const [info, setInfo] = useState<EstimateInfoState>(emptyInfo())
   const [items, setItems] = useState<EstimateItem[]>([])
+  const [clients, setClients] = useState<Client[]>([])
+  const [exhibitions, setExhibitions] = useState<ExhibitionListItem[]>([])
   const [pricingPolicies, setPricingPolicies] = useState<PricingPolicy[]>([])
   const [riskOptions, setRiskOptions] = useState<RiskOption[]>([])
   const [selectedRiskIds, setSelectedRiskIds] = useState<Set<string>>(new Set())
@@ -161,6 +165,11 @@ export default function EstimateForm() {
       return [...updated, ...newRows]
     })
   }, [seedItemsFromMaster])
+
+  useEffect(() => {
+    fetchClients().then(setClients).catch(() => {})
+    fetchExhibitionListItems().then(setExhibitions).catch(() => {})
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -407,7 +416,13 @@ export default function EstimateForm() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">고객명 *</label>
-                <input value={info.client_name} onChange={(e) => setInfo({ ...info, client_name: e.target.value })}
+                <AutocompleteInput value={info.client_name}
+                  onChange={(v) => setInfo((prev) => ({ ...prev, client_name: v }))}
+                  onSelectOption={(name) => {
+                    const c = clients.find((cl) => cl.name === name)
+                    setInfo((prev) => ({ ...prev, client_name: name, client_contact: c?.phone || prev.client_contact }))
+                  }}
+                  options={clients.map((c) => c.name)}
                   className={`${inputCls} w-full`} />
               </div>
               <div>
@@ -417,7 +432,13 @@ export default function EstimateForm() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">전시회명</label>
-                <input value={info.exhibition_name} onChange={(e) => setInfo({ ...info, exhibition_name: e.target.value })}
+                <AutocompleteInput value={info.exhibition_name}
+                  onChange={(v) => setInfo((prev) => ({ ...prev, exhibition_name: v }))}
+                  onSelectOption={(name) => {
+                    const ex = exhibitions.find((e) => e.name === name)
+                    setInfo((prev) => ({ ...prev, exhibition_name: name, venue: ex?.venue || prev.venue }))
+                  }}
+                  options={exhibitions.map((e) => e.name)}
                   className={`${inputCls} w-full`} />
               </div>
               <div>

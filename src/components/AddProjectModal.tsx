@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Plus, Trash2, UserPlus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import type { WmsProject, ProjectStatus, ConstructionStaff } from '../types'
+import { fetchClients, fetchExhibitionListItems, fetchConstructionWorkers } from '../lib/lookupData'
+import AutocompleteInput from './AutocompleteInput'
+import type { WmsProject, ProjectStatus, ConstructionStaff, Client, ExhibitionListItem } from '../types'
+import type { Worker } from '../pages/ConstructionStaff'
 
 interface Props {
   onClose: () => void
@@ -10,11 +13,21 @@ interface Props {
 }
 
 const STATUSES: ProjectStatus[] = ['제안중', '계약완료', '시공진행', '완료', '취소']
-const MANAGERS = ['김태환', '고연호', '김종혜']
+const MANAGERS = ['김태환', '김종혜']
 
 const emptyStaff = (): ConstructionStaff => ({ name: '', phone: '', email: '' })
 
 export default function AddProjectModal({ onClose, onSuccess, project }: Props) {
+  const [clients, setClients] = useState<Client[]>([])
+  const [exhibitions, setExhibitions] = useState<ExhibitionListItem[]>([])
+  const [workers, setWorkers] = useState<Worker[]>([])
+
+  useEffect(() => {
+    fetchClients().then(setClients).catch(() => {})
+    fetchExhibitionListItems().then(setExhibitions).catch(() => {})
+    fetchConstructionWorkers().then(setWorkers).catch(() => {})
+  }, [])
+
   const [form, setForm] = useState({
     name: project?.name || '',
     exhibition: project?.exhibition || '',
@@ -119,19 +132,29 @@ export default function AddProjectModal({ onClose, onSuccess, project }: Props) 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>전시회</label>
-                  <input type="text" value={form.exhibition} onChange={(e) => setForm({ ...form, exhibition: e.target.value })}
+                  <AutocompleteInput value={form.exhibition}
+                    onChange={(v) => setForm((f) => ({ ...f, exhibition: v }))}
+                    onSelectOption={(name) => {
+                      const ex = exhibitions.find((e) => e.name === name)
+                      setForm((f) => ({ ...f, exhibition: name, organizer: ex?.organizer || f.organizer }))
+                    }}
+                    options={exhibitions.map((e) => e.name)}
                     placeholder="전시회명" className={inputClass} />
                 </div>
                 <div>
                   <label className={labelClass}>기획사</label>
-                  <input type="text" value={form.organizer} onChange={(e) => setForm({ ...form, organizer: e.target.value })}
+                  <AutocompleteInput value={form.organizer}
+                    onChange={(v) => setForm((f) => ({ ...f, organizer: v }))}
+                    options={clients.map((c) => c.name)}
                     placeholder="기획사명" className={inputClass} />
                 </div>
               </div>
 
               <div>
                 <label className={labelClass}>참가사</label>
-                <input type="text" value={form.exhibitor} onChange={(e) => setForm({ ...form, exhibitor: e.target.value })}
+                <AutocompleteInput value={form.exhibitor}
+                  onChange={(v) => setForm((f) => ({ ...f, exhibitor: v }))}
+                  options={clients.map((c) => c.name)}
                   placeholder="참가사명" className={inputClass} />
               </div>
             </div>
@@ -260,7 +283,15 @@ export default function AddProjectModal({ onClose, onSuccess, project }: Props) 
                       <div className="grid grid-cols-3 gap-2">
                         <div>
                           <label className="block text-xs text-slate-500 mb-1">이름 <span className="text-red-400">*</span></label>
-                          <input type="text" value={s.name} onChange={(e) => updateStaff(i, 'name', e.target.value)}
+                          <AutocompleteInput value={s.name}
+                            onChange={(v) => updateStaff(i, 'name', v)}
+                            onSelectOption={(name) => {
+                              const worker = workers.find((w) => w.name === name)
+                              updateStaff(i, 'name', name)
+                              if (worker?.phone) updateStaff(i, 'phone', worker.phone)
+                              if (worker?.email) updateStaff(i, 'email', worker.email)
+                            }}
+                            options={workers.map((w) => w.name)}
                             placeholder="홍길동"
                             className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
                         </div>
