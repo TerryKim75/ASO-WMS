@@ -293,7 +293,7 @@ function ReportWriteModal({ initialTab, initialDate, targetUser, readOnly, onClo
 }) {
   const [tab, setTab] = useState<Tab>(initialTab)
   const [date, setDate] = useState(initialDate)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState<string | null>(null)
 
