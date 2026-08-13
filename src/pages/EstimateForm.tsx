@@ -309,15 +309,16 @@ export default function EstimateForm() {
     }
   }
 
-  const handleSave = async () => {
+  const handleSave = async (asNew = false) => {
     if (!info.client_name.trim()) { alert('고객명을 입력해주세요.'); return }
     setSaving(true)
     try {
       const reviewRequired = totals.margin.isBelowMinimum
+      const estimateNumber = asNew ? await generateEstimateNumber() : info.estimate_number
       const estimateId = await saveEstimate({
         estimate: {
-          id: isEdit ? id : undefined,
-          estimate_number: info.estimate_number,
+          id: asNew ? undefined : (isEdit ? id : undefined),
+          estimate_number: estimateNumber,
           client_type: info.client_type,
           client_name: info.client_name.trim(),
           client_contact: info.client_contact || undefined,
@@ -395,10 +396,18 @@ export default function EstimateForm() {
           <h1 className="text-xl md:text-2xl font-bold text-slate-800">{isEdit ? '견적서 수정' : '견적서 작성'}</h1>
           <p className="text-slate-500 text-sm mt-0.5">{info.estimate_number}</p>
         </div>
-        <button onClick={handleSave} disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors shadow-sm disabled:opacity-50">
-          <Save size={15} />{saving ? '저장 중...' : '저장'}
-        </button>
+        <div className="flex items-center gap-2">
+          {isEdit && (
+            <button onClick={() => handleSave(true)} disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-violet-700 bg-white border border-violet-300 hover:bg-violet-50 rounded-lg transition-colors shadow-sm disabled:opacity-50">
+              <Save size={15} />{saving ? '저장 중...' : '새로 저장'}
+            </button>
+          )}
+          <button onClick={() => handleSave()} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors shadow-sm disabled:opacity-50">
+            <Save size={15} />{saving ? '저장 중...' : '저장'}
+          </button>
+        </div>
       </div>
 
       <div className="space-y-4 md:space-y-5">
