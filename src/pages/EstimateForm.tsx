@@ -88,6 +88,20 @@ const emptyInfo = (): EstimateInfoState => ({
   excluded_scope: DEFAULT_EXCLUDED_SCOPE,
 })
 
+interface EstimateDraftSnapshot {
+  savedAt: string
+  info: EstimateInfoState
+  items: EstimateItem[]
+  overheadRate: number
+  overheadLabel: string
+  companyProfitType: DiscountValueType
+  companyProfitValue: number
+  publicDuesRate: number
+  discountType: DiscountValueType
+  discountValue: number
+  selectedRiskIds: string[]
+}
+
 const inputCls =
   'border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent'
 
@@ -95,6 +109,9 @@ export default function EstimateForm() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const isEdit = Boolean(id)
+  // 작성 중 브라우저 확장/번역 기능 등으로 화면이 오류로 튕기더라도 입력 내용을
+  // 복구할 수 있도록 로컬에 임시저장한다. id가 없는 신규 작성은 하나의 키를 공유한다.
+  const draftStorageKey = `aso_wms_estimate_draft_${id ?? 'new'}`
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -219,6 +236,30 @@ export default function EstimateForm() {
           setInfo((prev) => ({ ...prev, estimate_number: number }))
           setItems(seedItemsFromMaster(master))
         }
+
+        const draftRaw = localStorage.getItem(draftStorageKey)
+        if (draftRaw) {
+          try {
+            const draft = JSON.parse(draftRaw) as EstimateDraftSnapshot
+            const savedAtLabel = new Date(draft.savedAt).toLocaleString('ko-KR')
+            if (confirm(`이전에 작성 중 저장하지 못한 내용이 있습니다 (${savedAtLabel} 임시저장).\n불러오시겠습니까?`)) {
+              setInfo(draft.info)
+              setItems(draft.items)
+              setOverheadRate(draft.overheadRate)
+              setOverheadLabel(draft.overheadLabel)
+              setCompanyProfitType(draft.companyProfitType)
+              setCompanyProfitValue(draft.companyProfitValue)
+              setPublicDuesRate(draft.publicDuesRate)
+              setDiscountType(draft.discountType)
+              setDiscountValue(draft.discountValue)
+              setSelectedRiskIds(new Set(draft.selectedRiskIds))
+            } else {
+              localStorage.removeItem(draftStorageKey)
+            }
+          } catch {
+            localStorage.removeItem(draftStorageKey)
+          }
+        }
       } finally {
         setLoading(false)
       }
@@ -226,6 +267,28 @@ export default function EstimateForm() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isEdit])
+
+  // 입력 중 브라우저 확장/번역 기능 충돌 등으로 화면이 오류로 튕기는 경우를 대비해
+  // 1초 디바운스로 로컬에 임시저장한다. 정상 저장에 성공하면 즉시 비운다.
+  useEffect(() => {
+    if (loading) return
+    const timer = setTimeout(() => {
+      const snapshot: EstimateDraftSnapshot = {
+        savedAt: new Date().toISOString(),
+        info, items, overheadRate, overheadLabel, companyProfitType, companyProfitValue,
+        publicDuesRate, discountType, discountValue, selectedRiskIds: Array.from(selectedRiskIds),
+      }
+      try {
+        localStorage.setItem(draftStorageKey, JSON.stringify(snapshot))
+      } catch {
+        // 저장 공간 부족 등은 무시 — 임시저장은 best-effort
+      }
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [
+    loading, draftStorageKey, info, items, overheadRate, overheadLabel, companyProfitType,
+    companyProfitValue, publicDuesRate, discountType, discountValue, selectedRiskIds,
+  ])
 
   const overallPolicy: MarginPolicy = useMemo(() => {
     const p = pricingPolicies.find((p) => p.client_type === info.client_type && p.category === 'OVERALL')
@@ -376,6 +439,7 @@ export default function EstimateForm() {
           .filter((r) => selectedRiskIds.has(r.id))
           .map((r) => ({ risk_option_id: r.id, name: r.name, rate: r.default_rate })),
       })
+      try { localStorage.removeItem(draftStorageKey) } catch { /* best-effort */ }
       navigate(`/estimates/${estimateId}`)
     } catch (e) {
       console.error(e)
