@@ -37,7 +37,7 @@ export default function Layout() {
   )?.label ?? 'ASO System'
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex min-h-screen min-w-0 bg-slate-100">
       {/* Desktop Sidebar - 모바일에서 숨김 */}
       <div className="hidden md:block">
         <Sidebar />
@@ -160,7 +160,7 @@ export default function Layout() {
           <div className="w-10" />
         </header>
 
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto min-w-0">
           <div className="md:min-w-[960px]">
             <Outlet />
           </div>
