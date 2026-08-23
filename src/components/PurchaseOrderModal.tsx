@@ -196,7 +196,7 @@ ${form.notes ? `<div class="notes-section"><div class="notes-label">비고</div>
 
         <div className="overflow-y-auto flex-1 p-6 space-y-5">
           {/* 기본 정보 */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-slate-50 rounded-lg p-4 space-y-3">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">발주처 정보</p>
               <div className="space-y-1 text-sm">
@@ -207,7 +207,7 @@ ${form.notes ? `<div class="notes-section"><div class="notes-label">비고</div>
               </div>
             </div>
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">발주번호</label>
                   <input value={form.order_number} onChange={(e) => setForm({ ...form, order_number: e.target.value })}

@@ -26,6 +26,7 @@ const navItems = [
   { to: '/estimates', label: '견적서', icon: FileText },
   { to: '/contracts', label: '계약서', icon: FileSignature },
   { to: '/vendors', label: '발주처', icon: Building2 },
+  { to: '/purchase-orders', label: '발주서 목록', icon: FileText },
   { to: '/clients', label: '고객관리', icon: Contact },
   { to: '/work-report', label: '업무보고서', icon: ClipboardList },
   { to: '/bids', label: '시공입찰', icon: Gavel },

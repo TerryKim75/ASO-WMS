@@ -129,7 +129,7 @@ export default function AddProjectModal({ onClose, onSuccess, project }: Props) 
                   placeholder="예: 2025 서울 국제 전시회" className={inputClass} />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>전시회</label>
                   <AutocompleteInput value={form.exhibition}
@@ -164,7 +164,7 @@ export default function AddProjectModal({ onClose, onSuccess, project }: Props) 
             {/* 진행현황 + 담당 */}
             <div className="space-y-4">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">진행 정보</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>진행현황</label>
                   <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as ProjectStatus })}
@@ -188,7 +188,7 @@ export default function AddProjectModal({ onClose, onSuccess, project }: Props) 
             {/* 전시일정 */}
             <div className="space-y-4">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">전시 일정</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>시작일</label>
                   <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })}
@@ -200,7 +200,7 @@ export default function AddProjectModal({ onClose, onSuccess, project }: Props) 
                     className={inputClass} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>종료일</label>
                   <input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })}
@@ -219,7 +219,7 @@ export default function AddProjectModal({ onClose, onSuccess, project }: Props) 
             {/* 출고/입고 예정일 */}
             <div className="space-y-4">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">출고 / 입고 예정일</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>출고예정일</label>
                   <input type="date" value={form.shipping_date} onChange={(e) => setForm({ ...form, shipping_date: e.target.value })}
@@ -238,7 +238,7 @@ export default function AddProjectModal({ onClose, onSuccess, project }: Props) 
             {/* 시공 / 철거 일정 */}
             <div className="space-y-4">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">시공 / 철거 일정</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>시공일</label>
                   <input type="date" value={form.construction_date} onChange={(e) => setForm({ ...form, construction_date: e.target.value })}

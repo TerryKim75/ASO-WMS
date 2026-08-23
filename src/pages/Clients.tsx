@@ -90,7 +90,7 @@ function ClientFormModal({
         </div>
         <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 p-6 space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className={labelCls}>고객사명 <span className="text-red-500">*</span></label>
               <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}

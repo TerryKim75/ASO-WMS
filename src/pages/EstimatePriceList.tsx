@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Save, Trash2, Pencil, Check, ArrowLeft, GripVertical, List, Link2, Download, Upload } from 'lucide-react'
+import { Plus, Save, Trash2, Pencil, Check, ArrowLeft, GripVertical, List, Link2, Download, Upload, ChevronUp, ChevronDown } from 'lucide-react'
 import {
   fetchItemMasterForAdmin, upsertItemMasterRows, deleteItemMasterRow, replaceAllItemMaster,
   type ItemMasterDraft,
@@ -195,6 +195,25 @@ export default function EstimatePriceList() {
     setRows((prev) => prev.map((r) => (newSortOrder.has(r.id) ? { ...r, sort_order: newSortOrder.get(r.id)! } : r)))
   }
 
+  // 드래그(마우스)가 안 되는 터치 환경을 위한 순서 변경 버튼. 같은 분류 안에서만 이동한다.
+  const handleMoveRow = (id: string, direction: 'up' | 'down') => {
+    const row = rows.find((r) => r.id === id)
+    if (!row) return
+    const categoryItems = filtered.filter((r) => r.category === row.category)
+    const idx = categoryItems.findIndex((r) => r.id === id)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (idx < 0 || swapIdx < 0 || swapIdx >= categoryItems.length) return
+    const current = categoryItems[idx]
+    const swapWith = categoryItems[swapIdx]
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.id === current.id) return { ...r, sort_order: swapWith.sort_order }
+        if (r.id === swapWith.id) return { ...r, sort_order: current.sort_order }
+        return r
+      })
+    )
+  }
+
   const handleRemoveRow = async (id: string) => {
     if (savedIds.has(id)) {
       if (!window.confirm('이 품목을 견적단가 목록에서 삭제할까요?')) return
@@ -382,6 +401,10 @@ export default function EstimatePriceList() {
                   const isEditing = editingIds.has(row.id)
                   const marginCls = row.quoted_unit_price === 0 ? 'text-slate-300' : marginRate < 0 ? 'text-red-600' : 'text-green-700'
                   const isPaired = Boolean(row.paired_item_id)
+                  const categorySiblings = filtered.filter((r) => r.category === row.category)
+                  const siblingIdx = categorySiblings.findIndex((r) => r.id === row.id)
+                  const isFirstInCategory = siblingIdx <= 0
+                  const isLastInCategory = siblingIdx === -1 || siblingIdx === categorySiblings.length - 1
 
                   if (!isEditing) {
                     return (
@@ -396,7 +419,33 @@ export default function EstimatePriceList() {
                           dragOverId === row.id ? 'border-t-2 border-violet-500' : ''
                         } ${draggedId === row.id ? 'opacity-40' : ''}`}
                       >
-                        <td className="px-1 py-2 text-slate-300 w-6"><GripVertical size={14} /></td>
+                        <td className="px-1 py-2 w-6">
+                          <div className="flex items-center gap-0.5">
+                            <GripVertical size={14} className="hidden sm:block text-slate-300 shrink-0" />
+                            <div className="flex flex-col">
+                              <button
+                                type="button"
+                                draggable={false}
+                                onClick={(e) => { e.stopPropagation(); handleMoveRow(row.id, 'up') }}
+                                disabled={isFirstInCategory}
+                                title="위로 이동"
+                                className="text-slate-300 hover:text-violet-500 disabled:opacity-20 disabled:hover:text-slate-300 transition-colors"
+                              >
+                                <ChevronUp size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                draggable={false}
+                                onClick={(e) => { e.stopPropagation(); handleMoveRow(row.id, 'down') }}
+                                disabled={isLastInCategory}
+                                title="아래로 이동"
+                                className="text-slate-300 hover:text-violet-500 disabled:opacity-20 disabled:hover:text-slate-300 transition-colors"
+                              >
+                                <ChevronDown size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        </td>
                         <td className="px-2 py-2 text-slate-600">{row.category}</td>
                         <td className="px-2 py-2 min-w-[160px] font-medium text-slate-800">
                           {row.name}

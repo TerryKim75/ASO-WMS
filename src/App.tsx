@@ -8,6 +8,7 @@ import Projects from './pages/Projects'
 import ProjectDetail from './pages/ProjectDetail'
 import ConstructionStaff from './pages/ConstructionStaff'
 import Vendors from './pages/Vendors'
+import PurchaseOrders from './pages/PurchaseOrders'
 import WorkReport from './pages/WorkReport'
 import Employees from './pages/Employees'
 import BidForm from './pages/BidForm'
@@ -36,6 +37,7 @@ function App() {
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="staff" element={<ConstructionStaff />} />
             <Route path="vendors" element={<Vendors />} />
+            <Route path="purchase-orders" element={<PurchaseOrders />} />
             <Route path="clients" element={<Clients />} />
             <Route path="exhibition-list" element={<ExhibitionList />} />
             <Route path="work-report" element={<WorkReport />} />
