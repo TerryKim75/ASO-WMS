@@ -252,6 +252,38 @@ export interface Contract {
 }
 
 // ============================================================
+// 최종정산서 — 계약 진행 후 실제 지출/수익률을 기록하는 사후 정산
+// ============================================================
+
+export interface Settlement {
+  id: string
+  contract_id: string
+  estimate_id?: string
+  actual_total_cost: number
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SettlementItem {
+  id: string
+  settlement_id: string
+  estimate_item_id?: string
+  category: string
+  name: string
+  size?: string
+  unit: string
+  quantity: number
+  planned_unit_cost: number
+  actual_unit_cost: number
+  actual_amount: number
+  is_extra: boolean
+  memo?: string
+  sort_order: number
+  created_at: string
+}
+
+// ============================================================
 // 고객관리 (Client)
 // ============================================================
 

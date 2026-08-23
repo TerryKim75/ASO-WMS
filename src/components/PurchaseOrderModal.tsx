@@ -12,7 +12,7 @@ interface Vendor {
   email?: string
 }
 
-interface OrderItem {
+export interface OrderItem {
   name: string
   quantity: number
   unit: string
@@ -20,11 +20,26 @@ interface OrderItem {
   amount: number
 }
 
+interface ExistingOrder {
+  id: string
+  order_number: string
+  order_date: string
+  delivery_date?: string
+  project_id?: string
+  items: OrderItem[]
+  notes?: string
+  status: string
+}
+
 interface Props {
   vendor: Vendor
   onClose: () => void
   defaultProjectId?: string
+  existingOrder?: ExistingOrder
+  onSaved?: () => void
 }
+
+const PO_STATUSES = ['발주중', '납품완료', '취소']
 
 const emptyItem = (): OrderItem => ({ name: '', quantity: 1, unit: 'EA', unit_price: 0, amount: 0 })
 
@@ -44,16 +59,18 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function PurchaseOrderModal({ vendor, onClose, defaultProjectId }: Props) {
+export default function PurchaseOrderModal({ vendor, onClose, defaultProjectId, existingOrder, onSaved }: Props) {
+  const isEdit = !!existingOrder
   const [projects, setProjects] = useState<WmsProject[]>([])
   const [form, setForm] = useState({
-    order_number: generateOrderNumber(),
-    order_date: todayStr(),
-    delivery_date: '',
-    project_id: defaultProjectId || '',
-    notes: '',
+    order_number: existingOrder?.order_number || generateOrderNumber(),
+    order_date: existingOrder?.order_date || todayStr(),
+    delivery_date: existingOrder?.delivery_date || '',
+    project_id: existingOrder?.project_id || defaultProjectId || '',
+    notes: existingOrder?.notes || '',
+    status: existingOrder?.status || '발주중',
   })
-  const [items, setItems] = useState<OrderItem[]>([emptyItem()])
+  const [items, setItems] = useState<OrderItem[]>(existingOrder?.items?.length ? existingOrder.items : [emptyItem()])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -80,7 +97,7 @@ export default function PurchaseOrderModal({ vendor, onClose, defaultProjectId }
 
   const handleSave = async () => {
     setSaving(true)
-    await supabase.from('purchase_orders').insert({
+    const payload = {
       vendor_id: vendor.id,
       order_number: form.order_number,
       order_date: form.order_date,
@@ -89,10 +106,16 @@ export default function PurchaseOrderModal({ vendor, onClose, defaultProjectId }
       items: items.filter((it) => it.name.trim()),
       total_amount: total,
       notes: form.notes.trim() || null,
-      status: '발주중',
-    })
+      status: form.status,
+    }
+    if (isEdit) {
+      await supabase.from('purchase_orders').update(payload).eq('id', existingOrder.id)
+    } else {
+      await supabase.from('purchase_orders').insert(payload)
+    }
     setSaved(true)
     setSaving(false)
+    onSaved?.()
   }
 
   const handlePrint = () => {
@@ -188,7 +211,7 @@ ${form.notes ? `<div class="notes-section"><div class="notes-label">비고</div>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0 bg-slate-800 rounded-t-xl">
           <div>
-            <h2 className="text-lg font-bold text-white">발주서 작성</h2>
+            <h2 className="text-lg font-bold text-white">{isEdit ? '발주서 수정' : '발주서 작성'}</h2>
             <p className="text-xs text-slate-400 mt-0.5">{vendor.name}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X size={20} /></button>
@@ -207,6 +230,19 @@ ${form.notes ? `<div class="notes-section"><div class="notes-label">비고</div>
               </div>
             </div>
             <div className="space-y-3">
+              {isEdit && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">상태</label>
+                  <div className="flex gap-2">
+                    {PO_STATUSES.map((s) => (
+                      <button key={s} type="button" onClick={() => setForm({ ...form, status: s })}
+                        className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-colors ${form.status === s ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-600 border-slate-300 hover:border-violet-400'}`}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">발주번호</label>
@@ -315,7 +351,7 @@ ${form.notes ? `<div class="notes-section"><div class="notes-label">비고</div>
 
           {saved && (
             <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg">
-              발주서가 저장되었습니다.
+              발주서가 {isEdit ? '수정' : '저장'}되었습니다.
             </div>
           )}
         </div>

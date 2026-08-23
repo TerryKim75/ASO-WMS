@@ -20,6 +20,7 @@ import EstimateDetail from './pages/EstimateDetail'
 import EstimatePriceList from './pages/EstimatePriceList'
 import Contracts from './pages/Contracts'
 import ContractForm from './pages/ContractForm'
+import SettlementForm from './pages/SettlementForm'
 import Clients from './pages/Clients'
 import ExhibitionList from './pages/ExhibitionList'
 
@@ -52,6 +53,7 @@ function App() {
             <Route path="contracts" element={<Contracts />} />
             <Route path="contracts/new" element={<ContractForm />} />
             <Route path="contracts/:id/edit" element={<ContractForm />} />
+            <Route path="settlements/:contractId" element={<SettlementForm />} />
           </Route>
         </Routes>
       </CategoriesProvider>

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ChevronRight, Mail, Trash2 } from 'lucide-react'
+import { Plus, ChevronRight, Mail, Trash2, FileText, Calculator } from 'lucide-react'
 import { fetchContractList, deleteContract } from '../lib/contractActions'
+import { fetchSettlementIdsByContractIds } from '../lib/settlementActions'
 import { formatKRW } from '../lib/format'
 import type { Contract, ContractStatus } from '../types'
 
@@ -26,13 +27,16 @@ function formatDate(date?: string) {
 export default function Contracts() {
   const navigate = useNavigate()
   const [contracts, setContracts] = useState<Contract[]>([])
+  const [settlementIds, setSettlementIds] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<ContractStatus | 'all'>('all')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      setContracts(await fetchContractList())
+      const list = await fetchContractList()
+      setContracts(list)
+      setSettlementIds(await fetchSettlementIdsByContractIds(list.map((c) => c.id)))
     } finally {
       setLoading(false)
     }
@@ -121,9 +125,23 @@ export default function Contracts() {
                   <ChevronRight size={18} className="text-slate-300" />
                 </div>
               </div>
-              <div className="mt-3 pt-3 border-t border-slate-100 text-right">
-                <p className="text-xs text-slate-400">계약금액</p>
-                <p className="text-sm font-bold text-slate-800">{formatKRW(contract.total_amount)}</p>
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-end justify-between gap-2">
+                <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                  {contract.estimate_id && (
+                    <button onClick={() => navigate(`/estimates/${contract.estimate_id}`)}
+                      className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors">
+                      <FileText size={11} />견적서
+                    </button>
+                  )}
+                  <button onClick={() => navigate(`/settlements/${contract.id}`)}
+                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                    <Calculator size={11} />{settlementIds[contract.id] ? '정산서 보기' : '정산서 작성'}
+                  </button>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-xs text-slate-400">계약금액</p>
+                  <p className="text-sm font-bold text-slate-800">{formatKRW(contract.total_amount)}</p>
+                </div>
               </div>
             </div>
           ))
@@ -143,14 +161,15 @@ export default function Contracts() {
                 <th className="text-left px-4 py-3.5 font-semibold text-slate-600">계약일</th>
                 <th className="text-right px-4 py-3.5 font-semibold text-slate-600 whitespace-nowrap">계약금액</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-slate-600">상태</th>
+                <th className="text-center px-4 py-3.5 font-semibold text-slate-600">정산</th>
                 <th className="px-4 py-3.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-400">불러오는 중...</td></tr>
+                <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400">불러오는 중...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-400">계약서가 없습니다.</td></tr>
+                <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400">계약서가 없습니다.</td></tr>
               ) : (
                 filtered.map((contract) => (
                   <tr key={contract.id} onClick={() => navigate(`/contracts/${contract.id}/edit`)}
@@ -175,6 +194,20 @@ export default function Contracts() {
                       <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${CONTRACT_STATUS_COLORS[contract.status]}`}>
                         {contract.status}
                       </span>
+                    </td>
+                    <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-center gap-1.5">
+                        {contract.estimate_id && (
+                          <button onClick={() => navigate(`/estimates/${contract.estimate_id}`)} title="견적서 보기"
+                            className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
+                            <FileText size={14} />
+                          </button>
+                        )}
+                        <button onClick={() => navigate(`/settlements/${contract.id}`)}
+                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors whitespace-nowrap">
+                          <Calculator size={11} />{settlementIds[contract.id] ? '정산서 보기' : '정산서 작성'}
+                        </button>
+                      </div>
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center justify-end gap-1">

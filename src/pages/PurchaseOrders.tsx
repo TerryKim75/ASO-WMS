@@ -1,15 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Search, Edit2, Trash2, FileText, Paperclip, Plus, Building2 } from 'lucide-react'
+import { Search, Eye, Trash2, FileText, Paperclip, Plus, Building2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { Vendor } from './Vendors'
 import PurchaseOrderModal from '../components/PurchaseOrderModal'
-import EditPurchaseOrderModal, { PO_STATUSES, type PurchaseOrder } from '../components/EditPurchaseOrderModal'
-
-const STATUS_COLORS: Record<string, string> = {
-  발주중: 'bg-blue-100 text-blue-700',
-  납품완료: 'bg-green-100 text-green-700',
-  취소: 'bg-slate-100 text-slate-500',
-}
+import ViewPurchaseOrderModal, { PO_STATUSES, PO_STATUS_COLORS, type PurchaseOrder } from '../components/ViewPurchaseOrderModal'
 
 export default function PurchaseOrders() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([])
@@ -17,7 +11,8 @@ export default function PurchaseOrders() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [editingPo, setEditingPo] = useState<PurchaseOrder | null>(null)
+  const [viewingPo, setViewingPo] = useState<PurchaseOrder | null>(null)
+  const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null)
   const [uploadingPoId, setUploadingPoId] = useState<string | null>(null)
   const [newOrderVendorId, setNewOrderVendorId] = useState('')
   const [orderVendor, setOrderVendor] = useState<Vendor | null>(null)
@@ -136,7 +131,7 @@ export default function PurchaseOrders() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-slate-800">{po.vendors?.name || '-'}</span>
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${STATUS_COLORS[po.status] || 'bg-slate-100 text-slate-600'}`}>{po.status}</span>
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${PO_STATUS_COLORS[po.status] || 'bg-slate-100 text-slate-600'}`}>{po.status}</span>
                     </div>
                     <p className="text-xs text-slate-500 mt-1 font-mono">{po.order_number}</p>
                     {po.wms_projects?.name && (
@@ -148,9 +143,9 @@ export default function PurchaseOrders() {
                     </div>
                   </div>
                   <div className="flex items-center gap-0.5 flex-shrink-0">
-                    <button onClick={() => setEditingPo(po)}
+                    <button onClick={() => setViewingPo(po)}
                       className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
-                      <Edit2 size={15} />
+                      <Eye size={15} />
                     </button>
                     <button onClick={() => handleDelete(po.id)}
                       className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
@@ -219,7 +214,7 @@ export default function PurchaseOrders() {
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{po.order_date.replace(/-/g, '.')}</td>
                     <td className="px-4 py-3.5 text-right font-semibold text-slate-800 whitespace-nowrap">{po.total_amount.toLocaleString()}원</td>
                     <td className="px-4 py-3.5 text-center">
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${STATUS_COLORS[po.status] || 'bg-slate-100 text-slate-600'}`}>{po.status}</span>
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${PO_STATUS_COLORS[po.status] || 'bg-slate-100 text-slate-600'}`}>{po.status}</span>
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       {po.file_url ? (
@@ -238,9 +233,9 @@ export default function PurchaseOrders() {
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => setEditingPo(po)}
+                        <button onClick={() => setViewingPo(po)}
                           className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
-                          <Edit2 size={14} />
+                          <Eye size={14} />
                         </button>
                         <button onClick={() => handleDelete(po.id)}
                           className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
@@ -265,9 +260,25 @@ export default function PurchaseOrders() {
           onClose={() => { setOrderVendor(null); setNewOrderVendorId(''); fetchData() }}
         />
       )}
-      {editingPo && (
-        <EditPurchaseOrderModal po={editingPo} onClose={() => setEditingPo(null)} onSuccess={fetchData} />
+      {viewingPo && (
+        <ViewPurchaseOrderModal
+          po={viewingPo}
+          onClose={() => setViewingPo(null)}
+          onEdit={() => { setEditingOrder(viewingPo); setViewingPo(null) }}
+        />
       )}
+      {editingOrder && (() => {
+        const editVendor = vendors.find((v) => v.id === editingOrder.vendor_id)
+        if (!editVendor) return null
+        return (
+          <PurchaseOrderModal
+            vendor={editVendor}
+            existingOrder={editingOrder}
+            onClose={() => setEditingOrder(null)}
+            onSaved={fetchData}
+          />
+        )
+      })()}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, Plus, Edit2, Check, X, Phone, Mail, Users,
+  ArrowLeft, Plus, Edit2, Eye, Check, X, Phone, Mail, Users,
   FileText, Paperclip, Search, Building2,
   Trash2, Send, Pencil, Download, Printer,
 } from 'lucide-react'
@@ -10,7 +10,7 @@ import type { WmsProject, ProjectStatus, Item, InventoryTransaction, ProjectBid 
 import { STATUS_COLORS } from './Projects'
 import PurchaseOrderModal from '../components/PurchaseOrderModal'
 import AddProjectModal from '../components/AddProjectModal'
-import EditPurchaseOrderModal, { type PurchaseOrder } from '../components/EditPurchaseOrderModal'
+import ViewPurchaseOrderModal, { PO_STATUS_COLORS, type PurchaseOrder } from '../components/ViewPurchaseOrderModal'
 
 const STATUSES: ProjectStatus[] = ['제안중', '계약완료', '시공진행', '완료', '취소']
 
@@ -451,7 +451,8 @@ export default function ProjectDetail() {
   const [txSearch, setTxSearch] = useState('')
   const [bids, setBids] = useState<ProjectBid[]>([])
   const [showEditProject, setShowEditProject] = useState(false)
-  const [editingPo, setEditingPo] = useState<PurchaseOrder | null>(null)
+  const [viewingPo, setViewingPo] = useState<PurchaseOrder | null>(null)
+  const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null)
   const [showNoticeModal, setShowNoticeModal] = useState(false)
   const [sendingNotice, setSendingNotice] = useState(false)
   const [noticeResult, setNoticeResult] = useState<{ ok: boolean; msg: string } | null>(null)
@@ -1229,7 +1230,7 @@ export default function ProjectDetail() {
                   <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{po.order_date.replace(/-/g, '.')}</td>
                   <td className="px-4 py-3 text-right font-semibold text-slate-800">{po.total_amount.toLocaleString()}원</td>
                   <td className="px-4 py-3 text-center">
-                    <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">{po.status}</span>
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${PO_STATUS_COLORS[po.status] || 'bg-slate-100 text-slate-600'}`}>{po.status}</span>
                   </td>
                   <td className="px-4 py-3 text-center">
                     {po.file_url ? (
@@ -1255,9 +1256,9 @@ export default function ProjectDetail() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => setEditingPo(po)}
+                      <button onClick={() => setViewingPo(po)}
                         className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
-                        <Edit2 size={13} />
+                        <Eye size={13} />
                       </button>
                       <button onClick={() => handleDeletePo(po.id)}
                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
@@ -1373,14 +1374,26 @@ export default function ProjectDetail() {
         />
       )}
 
-      {/* 발주서 수정 모달 */}
-      {editingPo && (
-        <EditPurchaseOrderModal
-          po={editingPo}
-          onClose={() => setEditingPo(null)}
-          onSuccess={fetchProjectData}
+      {/* 발주서 보기 / 수정 모달 */}
+      {viewingPo && (
+        <ViewPurchaseOrderModal
+          po={viewingPo}
+          onClose={() => setViewingPo(null)}
+          onEdit={() => { setEditingOrder(viewingPo); setViewingPo(null) }}
         />
       )}
+      {editingOrder && (() => {
+        const editVendor = vendors.find((v) => v.id === editingOrder.vendor_id)
+        if (!editVendor) return null
+        return (
+          <PurchaseOrderModal
+            vendor={editVendor}
+            existingOrder={editingOrder}
+            onClose={() => setEditingOrder(null)}
+            onSaved={fetchProjectData}
+          />
+        )
+      })()}
 
       {/* 입찰 공고 작성 모달 */}
       {showNoticeModal && project && (
