@@ -4,8 +4,9 @@ import { ArrowLeft, Save, Plus, Trash2, FileText } from 'lucide-react'
 import { fetchContract } from '../lib/contractActions'
 import { fetchEstimateFull } from '../lib/estimateActions'
 import { fetchSettlementByContractId, saveSettlement, type SettlementItemDraft } from '../lib/settlementActions'
+import { ESTIMATE_CATEGORIES } from '../components/estimates/EstimateItemsAccordion'
 import { formatKRW, formatPercent } from '../lib/format'
-import type { Contract } from '../types'
+import type { Contract, EstimateCategory } from '../types'
 
 interface Row extends SettlementItemDraft {
   key: string
@@ -13,6 +14,23 @@ interface Row extends SettlementItemDraft {
 
 function toRow(draft: SettlementItemDraft): Row {
   return { ...draft, key: crypto.randomUUID() }
+}
+
+// 견적서(내부용 실행가표)와 동일한 분류 순서로 정렬한다 — 프리셋 분류 순서 뒤에
+// 프리셋에 없는 분류(추가 비용 항목 등)를 처음 등장한 순서대로 붙인다.
+function sortRowsByCategoryOrder(rows: Row[]): Row[] {
+  const seenOrder = Array.from(new Set(rows.map((r) => r.category)))
+  const categories = [
+    ...ESTIMATE_CATEGORIES,
+    ...seenOrder.filter((c) => !ESTIMATE_CATEGORIES.includes(c as EstimateCategory)),
+  ]
+  const byCategory = new Map<string, Row[]>()
+  for (const row of rows) {
+    const list = byCategory.get(row.category) ?? []
+    list.push(row)
+    byCategory.set(row.category, list)
+  }
+  return categories.flatMap((c) => byCategory.get(c) ?? [])
 }
 
 const emptyExtraRow = (): Row => toRow({
@@ -44,22 +62,25 @@ export default function SettlementForm() {
       const existing = await fetchSettlementByContractId(contractId)
       if (existing) {
         setNotes(existing.settlement.notes)
-        setRows(existing.items.map((item) => toRow({
+        setRows(sortRowsByCategoryOrder(existing.items.map((item) => toRow({
           estimate_item_id: item.estimate_item_id,
           category: item.category, name: item.name, size: item.size, unit: item.unit,
           quantity: item.quantity, planned_unit_cost: item.planned_unit_cost,
           actual_unit_cost: item.actual_unit_cost, actual_amount: item.actual_amount,
           is_extra: item.is_extra, memo: item.memo,
-        })))
+        }))))
       } else if (c.estimate_id) {
         const full = await fetchEstimateFull(c.estimate_id)
-        setRows(full.items.map((item) => toRow({
+        // 실제 진행된(수량이 있는) 품목만 정산 대상으로 가져온다 — 견적에만 있고
+        // 실제로는 쓰이지 않은 품목까지 정산서에 끌려오지 않도록 한다.
+        const usedItems = full.items.filter((item) => item.quantity > 0)
+        setRows(sortRowsByCategoryOrder(usedItems.map((item) => toRow({
           estimate_item_id: item.id,
           category: item.category, name: item.name, size: item.size || '', unit: item.unit,
           quantity: item.quantity, planned_unit_cost: item.execution_unit_cost,
           actual_unit_cost: item.execution_unit_cost, actual_amount: item.execution_unit_cost * item.quantity,
           is_extra: false, memo: '',
-        })))
+        }))))
       } else {
         setRows([])
       }
