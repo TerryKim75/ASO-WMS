@@ -190,7 +190,10 @@ function ClientDetailModal({
   onClose: () => void
 }) {
   const navigate = useNavigate()
-  const related = projects.filter((p) => p.organizer === client.name || p.exhibitor === client.name)
+  const related = projects.filter((p) =>
+    p.organizer_client_id === client.id || p.exhibitor_client_id === client.id ||
+    p.organizer === client.name || p.exhibitor === client.name
+  )
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -284,7 +287,10 @@ export default function Clients() {
     fetchData()
   }
 
-  const projectCount = (name: string) => projects.filter((p) => p.organizer === name || p.exhibitor === name).length
+  const projectCount = (client: Client) => projects.filter((p) =>
+    p.organizer_client_id === client.id || p.exhibitor_client_id === client.id ||
+    p.organizer === client.name || p.exhibitor === client.name
+  ).length
 
   const filtered = clients.filter((c) => {
     const q = search.toLowerCase()
@@ -346,7 +352,7 @@ export default function Clients() {
                         </a>
                       )}
                     </div>
-                    <p className="text-xs text-slate-400 mt-1.5">관련 프로젝트 {projectCount(c.name)}건</p>
+                    <p className="text-xs text-slate-400 mt-1.5">관련 프로젝트 {projectCount(c)}건</p>
                   </div>
                   <div className="flex items-center gap-0.5 flex-shrink-0">
                     <button onClick={() => { setEditingClient(c); setShowForm(true) }}
@@ -426,7 +432,7 @@ export default function Clients() {
                     <td className="px-4 py-3.5 text-center">
                       <button onClick={() => setDetailClient(c)}
                         className="text-xs font-medium text-violet-600 hover:text-violet-700">
-                        {projectCount(c.name)}건
+                        {projectCount(c)}건
                       </button>
                     </td>
                     <td className="px-4 py-3.5 text-center">

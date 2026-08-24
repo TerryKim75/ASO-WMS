@@ -31,7 +31,9 @@ export interface WmsProject {
   name: string
   exhibition?: string
   organizer?: string
+  organizer_client_id?: string
   exhibitor?: string
+  exhibitor_client_id?: string
   start_date?: string
   start_time?: string
   end_date?: string

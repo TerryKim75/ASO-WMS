@@ -32,7 +32,9 @@ export default function AddProjectModal({ onClose, onSuccess, project }: Props) 
     name: project?.name || '',
     exhibition: project?.exhibition || '',
     organizer: project?.organizer || '',
+    organizer_client_id: project?.organizer_client_id,
     exhibitor: project?.exhibitor || '',
+    exhibitor_client_id: project?.exhibitor_client_id,
     status: (project?.status || '제안중') as ProjectStatus,
     start_date: project?.start_date || '',
     start_time: project?.start_time || '',
@@ -69,7 +71,9 @@ export default function AddProjectModal({ onClose, onSuccess, project }: Props) 
         name: form.name.trim(),
         exhibition: form.exhibition.trim() || null,
         organizer: form.organizer.trim() || null,
+        organizer_client_id: form.organizer_client_id || null,
         exhibitor: form.exhibitor.trim() || null,
+        exhibitor_client_id: form.exhibitor_client_id || null,
         status: form.status,
         start_date: form.start_date || null,
         start_time: form.start_time || null,
@@ -136,7 +140,9 @@ export default function AddProjectModal({ onClose, onSuccess, project }: Props) 
                     onChange={(v) => setForm((f) => ({ ...f, exhibition: v }))}
                     onSelectOption={(name) => {
                       const ex = exhibitions.find((e) => e.name === name)
-                      setForm((f) => ({ ...f, exhibition: name, organizer: ex?.organizer || f.organizer }))
+                      const organizer = ex?.organizer || form.organizer
+                      const matched = clients.find((c) => c.name === organizer)
+                      setForm((f) => ({ ...f, exhibition: name, organizer, organizer_client_id: matched?.id }))
                     }}
                     options={exhibitions.map((e) => e.name)}
                     placeholder="전시회명" className={inputClass} />
@@ -144,18 +150,24 @@ export default function AddProjectModal({ onClose, onSuccess, project }: Props) 
                 <div>
                   <label className={labelClass}>기획사</label>
                   <AutocompleteInput value={form.organizer}
-                    onChange={(v) => setForm((f) => ({ ...f, organizer: v }))}
+                    onChange={(v) => {
+                      const matched = clients.find((c) => c.name === v)
+                      setForm((f) => ({ ...f, organizer: v, organizer_client_id: matched?.id }))
+                    }}
                     options={clients.map((c) => c.name)}
-                    placeholder="기획사명" className={inputClass} />
+                    placeholder="기획사명 (고객관리에 등록된 고객사 중에서 선택하세요)" className={inputClass} />
                 </div>
               </div>
 
               <div>
                 <label className={labelClass}>참가사</label>
                 <AutocompleteInput value={form.exhibitor}
-                  onChange={(v) => setForm((f) => ({ ...f, exhibitor: v }))}
+                  onChange={(v) => {
+                    const matched = clients.find((c) => c.name === v)
+                    setForm((f) => ({ ...f, exhibitor: v, exhibitor_client_id: matched?.id }))
+                  }}
                   options={clients.map((c) => c.name)}
-                  placeholder="참가사명" className={inputClass} />
+                  placeholder="참가사명 (고객관리에 등록된 고객사 중에서 선택하세요)" className={inputClass} />
               </div>
             </div>
 
