@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Save, Plus, Trash2, FileText } from 'lucide-react'
+import { ArrowLeft, Save, Plus, Trash2, FileText, Printer } from 'lucide-react'
 import { fetchContract } from '../lib/contractActions'
 import { fetchEstimateFull } from '../lib/estimateActions'
 import { fetchSettlementByContractId, saveSettlement, type SettlementItemDraft } from '../lib/settlementActions'
 import { ESTIMATE_CATEGORIES } from '../components/estimates/EstimateItemsAccordion'
+import { ASO_COMPANY_INFO } from '../lib/companyInfo'
 import { formatKRW, formatPercent } from '../lib/format'
 import type { Contract, EstimateCategory } from '../types'
 
@@ -111,6 +112,100 @@ export default function SettlementForm() {
   const actualProfit = revenue - actualTotalCost
   const actualProfitRate = revenue !== 0 ? actualProfit / revenue : 0
 
+  const handlePrint = () => {
+    if (!contract) return
+    const itemRows = rows.map((row, i) => `
+      <tr>
+        <td style="border:1px solid #ddd;padding:7px 8px;text-align:center">${i + 1}</td>
+        <td style="border:1px solid #ddd;padding:7px 8px">${row.category}</td>
+        <td style="border:1px solid #ddd;padding:7px 8px">${row.name}</td>
+        <td style="border:1px solid #ddd;padding:7px 8px;text-align:center">${row.quantity.toLocaleString()}</td>
+        <td style="border:1px solid #ddd;padding:7px 8px;text-align:center">${row.unit}</td>
+        <td style="border:1px solid #ddd;padding:7px 8px;text-align:right">${row.is_extra ? '-' : row.planned_unit_cost.toLocaleString()}</td>
+        <td style="border:1px solid #ddd;padding:7px 8px;text-align:right">${row.actual_unit_cost.toLocaleString()}</td>
+        <td style="border:1px solid #ddd;padding:7px 8px;text-align:right;font-weight:600">${row.actual_amount.toLocaleString()}</td>
+      </tr>`).join('')
+
+    const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>최종정산서 - ${contract.contract_number}</title>
+<style>
+  @page { margin: 18mm; }
+  body { font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #1e293b; }
+  .header { text-align: center; margin-bottom: 24px; }
+  .title { font-size: 26px; font-weight: 700; letter-spacing: 8px; border-bottom: 3px solid #1e293b; padding-bottom: 10px; margin-bottom: 18px; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 40px; margin-bottom: 20px; }
+  .info-row { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px dashed #e2e8f0; }
+  .info-label { color: #64748b; min-width: 72px; font-size: 12px; }
+  .info-value { font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  thead th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px; font-size: 11px; }
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 0; }
+  .summary-box { border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; text-align: center; }
+  .summary-label { font-size: 11px; color: #94a3b8; }
+  .summary-value { font-size: 15px; font-weight: 700; margin-top: 4px; }
+  .profit-negative { color: #dc2626; }
+  .profit-positive { color: #6d28d9; }
+  .notes-section { margin-top: 16px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 6px; min-height: 50px; }
+  .notes-label { font-size: 11px; color: #94a3b8; margin-bottom: 4px; }
+  .footer { margin-top: 40px; text-align: right; color: #94a3b8; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="title">최 &nbsp; 종 &nbsp; 정 &nbsp; 산 &nbsp; 서</div>
+</div>
+<div class="info-grid">
+  <div>
+    <div class="info-row"><span class="info-label">고객사</span><span class="info-value">${contract.client_name}</span></div>
+    <div class="info-row"><span class="info-label">전시회</span><span class="info-value">${contract.exhibition_name || '-'}</span></div>
+  </div>
+  <div>
+    <div class="info-row"><span class="info-label">계약번호</span><span class="info-value">${contract.contract_number}</span></div>
+    <div class="info-row"><span class="info-label">계약일</span><span class="info-value">${contract.contract_date ? contract.contract_date.replace(/-/g, '.') : '-'}</span></div>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:32px">No.</th>
+      <th style="width:80px">분류</th>
+      <th>품목명</th>
+      <th style="width:50px">수량</th>
+      <th style="width:44px">단위</th>
+      <th style="width:90px">계획단가</th>
+      <th style="width:90px">실제단가</th>
+      <th style="width:100px">실제금액</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${itemRows || '<tr><td colspan="8" style="border:1px solid #ddd;padding:20px;text-align:center;color:#94a3b8">품목 없음</td></tr>'}
+  </tbody>
+</table>
+
+<div class="summary">
+  <div class="summary-box"><div class="summary-label">계약금액 (매출)</div><div class="summary-value">${revenue.toLocaleString()}원</div></div>
+  <div class="summary-box"><div class="summary-label">실제 총 비용</div><div class="summary-value">${actualTotalCost.toLocaleString()}원</div></div>
+  <div class="summary-box"><div class="summary-label">실제 수익</div><div class="summary-value ${actualProfit < 0 ? 'profit-negative' : ''}">${actualProfit.toLocaleString()}원</div></div>
+  <div class="summary-box"><div class="summary-label">실제 수익률</div><div class="summary-value ${actualProfitRate < 0 ? 'profit-negative' : 'profit-positive'}">${(actualProfitRate * 100).toFixed(1)}%</div></div>
+</div>
+
+${notes ? `<div class="notes-section"><div class="notes-label">비고</div>${notes}</div>` : ''}
+
+<div class="footer">발행일: ${new Date().toLocaleDateString('ko-KR')} &nbsp;|&nbsp; ${ASO_COMPANY_INFO.name}</div>
+</body>
+</html>`
+
+    const w = window.open('', '_blank', 'width=900,height=1000')
+    if (!w) return
+    w.document.write(html)
+    w.document.close()
+    setTimeout(() => { w.print() }, 400)
+  }
+
   const handleSave = async () => {
     if (!contractId) return
     setSaving(true)
@@ -148,10 +243,16 @@ export default function SettlementForm() {
           <h1 className="text-xl md:text-2xl font-bold text-slate-800">최종 정산서</h1>
           <p className="text-slate-500 text-sm mt-0.5">{contract.client_name} · {contract.contract_number}</p>
         </div>
-        <button onClick={handleSave} disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors shadow-sm disabled:opacity-50">
-          <Save size={15} />{saving ? '저장 중...' : saved ? '저장됨' : '저장'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors">
+            <Printer size={15} />인쇄 / PDF저장
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors shadow-sm disabled:opacity-50">
+            <Save size={15} />{saving ? '저장 중...' : saved ? '저장됨' : '저장'}
+          </button>
+        </div>
       </div>
 
       {estimateId && (
