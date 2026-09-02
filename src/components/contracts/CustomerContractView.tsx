@@ -47,6 +47,7 @@ const GENERAL_TERMS = [
 
 function buildPrintHtml(data: ContractPrintData) {
   const logoUrl = `${window.location.origin}/images/aso-logo.png`
+  const stampUrl = `${window.location.origin}/images/aso-stamp.jpg`
   const { supply, vat } = splitVat(data.total_amount)
 
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
@@ -80,7 +81,8 @@ function buildPrintHtml(data: ContractPrintData) {
     .sign-col .role { font-weight: 700; margin-bottom: 8px; }
     .sign-row { display: flex; padding: 3px 0; font-size: 12px; }
     .sign-label { color: #64748b; width: 64px; flex-shrink: 0; }
-    .sign-stamp { text-align: right; margin-top: 10px; font-size: 12px; color: #64748b; }
+    .sign-stamp { position: relative; text-align: right; margin-top: 10px; font-size: 12px; color: #64748b; }
+    .sign-stamp img { position: absolute; right: 30px; top: -18px; width: 56px; height: 56px; opacity: 0.92; }
   </style></head><body>
   <div class="doc-header">
     <div class="brand">
@@ -161,7 +163,7 @@ function buildPrintHtml(data: ContractPrintData) {
       <div class="role">을 (시공사)</div>
       <div class="sign-row"><span class="sign-label">상호</span><span>${ASO_COMPANY_INFO.name}</span></div>
       <div class="sign-row"><span class="sign-label">대표자</span><span>${ASO_COMPANY_INFO.representative}</span></div>
-      <div class="sign-stamp">서명/날인: ______________ (인)</div>
+      <div class="sign-stamp">서명/날인: ${ASO_COMPANY_INFO.name} (인)<img src="${stampUrl}" alt="직인" /></div>
     </div>
   </div>
   </body></html>`
@@ -312,11 +314,12 @@ export default function CustomerContractView({ data, onClose }: Props) {
             <p className="text-xs text-slate-500">대표자: {data.client_representative || '-'}</p>
             <p className="text-xs text-slate-400 text-right mt-2">서명/날인: ______________ (인)</p>
           </div>
-          <div className="border border-slate-200 rounded-lg p-3">
+          <div className="border border-slate-200 rounded-lg p-3 relative">
             <p className="font-semibold text-sm mb-1.5">을 (시공사)</p>
             <p className="text-xs text-slate-500">상호: {ASO_COMPANY_INFO.name}</p>
             <p className="text-xs text-slate-500">대표자: {ASO_COMPANY_INFO.representative}</p>
-            <p className="text-xs text-slate-400 text-right mt-2">서명/날인: ______________ (인)</p>
+            <p className="text-xs text-slate-400 text-right mt-2">서명/날인: {ASO_COMPANY_INFO.name} (인)</p>
+            <img src="/images/aso-stamp.jpg" alt="직인" className="absolute right-6 bottom-1.5 w-12 h-12 opacity-90 pointer-events-none" />
           </div>
         </div>
       </div>
