@@ -112,7 +112,7 @@ export default function EstimateDetail() {
             customer_notes: estimate.customer_notes,
           }}
           lineItems={toCustomerLineItems(items)}
-          summary={toCustomerSummary(totals)}
+          summary={toCustomerSummary(totals, overheadLabel)}
           printDisabled={estimate.review_required}
         />
       )}

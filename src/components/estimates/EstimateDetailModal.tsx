@@ -118,7 +118,7 @@ export default function EstimateDetailModal({ id, onClose }: Props) {
                     customer_notes: full.estimate.customer_notes,
                   }}
                   lineItems={toCustomerLineItems(full.items)}
-                  summary={toCustomerSummary(totals)}
+                  summary={toCustomerSummary(totals, overheadLabel)}
                   printDisabled={full.estimate.review_required}
                 />
               )}

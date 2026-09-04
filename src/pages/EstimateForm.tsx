@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Save } from 'lucide-react'
 import {
@@ -270,8 +270,13 @@ export default function EstimateForm() {
 
   // 입력 중 브라우저 확장/번역 기능 충돌 등으로 화면이 오류로 튕기는 경우를 대비해
   // 1초 디바운스로 로컬에 임시저장한다. 정상 저장에 성공하면 즉시 비운다.
+  // loading이 false로 바뀌며 발생하는 첫 실행은 로드 직후의 "미편집" 상태이므로 건너뛴다 —
+  // 그렇지 않으면 사용자가 아무것도 편집하지 않은 빈 폼도 매번 "복구 가능한 임시저장"으로
+  // 남아, 새 견적서 페이지를 열 때마다 불필요한 복구 확인창이 뜨게 된다.
+  const skipNextAutosaveRef = useRef(false)
   useEffect(() => {
-    if (loading) return
+    if (loading) { skipNextAutosaveRef.current = true; return }
+    if (skipNextAutosaveRef.current) { skipNextAutosaveRef.current = false; return }
     const timer = setTimeout(() => {
       const snapshot: EstimateDraftSnapshot = {
         savedAt: new Date().toISOString(),

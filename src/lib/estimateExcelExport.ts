@@ -43,7 +43,12 @@ export async function exportCustomerEstimateToExcel(
   })
 
   rows.push([])
-  rows.push(['', '', '', '', '공급가', summary.preDiscountSupply])
+  rows.push(['', '', '', '', '공급가 (품목 합계)', summary.quotedTotal])
+  rows.push(['', '', '', '', summary.overheadLabel, summary.overheadAmount])
+  rows.push(['', '', '', '', '공과잡비', summary.publicDuesAmount])
+  if (summary.riskAmount > 0) rows.push(['', '', '', '', '리스크 비용', summary.riskAmount])
+  rows.push(['', '', '', '', '기업이윤', summary.companyProfitAmount])
+  rows.push(['', '', '', '', '공급가 합계', summary.preDiscountSupply])
   if (summary.discountAmount > 0) rows.push(['', '', '', '', '할인', -summary.discountAmount])
   rows.push(['', '', '', '', 'VAT (10%)', summary.vatAmount])
   rows.push(['', '', '', '', '최종 견적금액', summary.finalTotalAmount])

@@ -16,6 +16,12 @@ export interface CustomerLineItem {
 }
 
 export interface CustomerSummary {
+  quotedTotal: number
+  overheadLabel: string
+  overheadAmount: number
+  publicDuesAmount: number
+  riskAmount: number
+  companyProfitAmount: number
   preDiscountSupply: number
   discountAmount: number
   finalSupplyAmount: number
@@ -38,8 +44,14 @@ export function toCustomerLineItems(items: EstimateItem[]): CustomerLineItem[] {
     }))
 }
 
-export function toCustomerSummary(totals: EstimateTotals): CustomerSummary {
+export function toCustomerSummary(totals: EstimateTotals, overheadLabel: string): CustomerSummary {
   return {
+    quotedTotal: totals.quotedTotal,
+    overheadLabel: overheadLabel || '제작관리비',
+    overheadAmount: totals.overheadAmount,
+    publicDuesAmount: totals.publicDuesAmount,
+    riskAmount: totals.riskAmount,
+    companyProfitAmount: totals.companyProfitAmount,
     preDiscountSupply: totals.preDiscountSupply,
     discountAmount: totals.discountAmount,
     finalSupplyAmount: totals.finalSupplyAmount,

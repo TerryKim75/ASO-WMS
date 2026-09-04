@@ -120,7 +120,12 @@ function buildPrintHtml(header: CustomerEstimateHeader, lineItems: CustomerLineI
       ${header.excluded_scope ? `<div><div class="scope-title">불포함 사항</div><div class="scope-body">${header.excluded_scope}</div></div>` : '<div></div>'}
     </div>
     <div class="totals">
-      <div class="totals-row"><span>공급가</span><span>${formatKRW(summary.preDiscountSupply)}</span></div>
+      <div class="totals-row"><span>공급가 (품목 합계)</span><span>${formatKRW(summary.quotedTotal)}</span></div>
+      <div class="totals-row"><span>${summary.overheadLabel}</span><span>${formatKRW(summary.overheadAmount)}</span></div>
+      <div class="totals-row"><span>공과잡비</span><span>${formatKRW(summary.publicDuesAmount)}</span></div>
+      ${summary.riskAmount > 0 ? `<div class="totals-row"><span>리스크 비용</span><span>${formatKRW(summary.riskAmount)}</span></div>` : ''}
+      <div class="totals-row"><span>기업이윤</span><span>${formatKRW(summary.companyProfitAmount)}</span></div>
+      <div class="totals-row" style="border-top:1px solid #e2e8f0;margin-top:4px;padding-top:7px"><span>공급가 합계</span><span>${formatKRW(summary.preDiscountSupply)}</span></div>
       ${summary.discountAmount > 0 ? `<div class="totals-row"><span>할인</span><span>-${formatKRW(summary.discountAmount)}</span></div>` : ''}
       <div class="totals-row"><span>VAT (10%)</span><span>${formatKRW(summary.vatAmount)}</span></div>
       <div class="totals-row final"><span>최종 견적금액</span><span>${formatKRW(summary.finalTotalAmount)}</span></div>
@@ -247,7 +252,14 @@ export default function CustomerEstimateView({ header, lineItems, summary, print
             )}
           </div>
           <div className="w-full max-w-xs flex-shrink-0 space-y-1 text-sm">
-            <div className="flex justify-between py-1"><span className="text-slate-500">공급가</span><span>{formatKRW(summary.preDiscountSupply)}</span></div>
+            <div className="flex justify-between py-1"><span className="text-slate-500">공급가 (품목 합계)</span><span>{formatKRW(summary.quotedTotal)}</span></div>
+            <div className="flex justify-between py-1"><span className="text-slate-500">{summary.overheadLabel}</span><span>{formatKRW(summary.overheadAmount)}</span></div>
+            <div className="flex justify-between py-1"><span className="text-slate-500">공과잡비</span><span>{formatKRW(summary.publicDuesAmount)}</span></div>
+            {summary.riskAmount > 0 && (
+              <div className="flex justify-between py-1"><span className="text-slate-500">리스크 비용</span><span>{formatKRW(summary.riskAmount)}</span></div>
+            )}
+            <div className="flex justify-between py-1"><span className="text-slate-500">기업이윤</span><span>{formatKRW(summary.companyProfitAmount)}</span></div>
+            <div className="flex justify-between py-1 border-t border-slate-200 mt-1 pt-2"><span className="text-slate-500">공급가 합계</span><span>{formatKRW(summary.preDiscountSupply)}</span></div>
             {summary.discountAmount > 0 && (
               <div className="flex justify-between py-1"><span className="text-slate-500">할인</span><span>-{formatKRW(summary.discountAmount)}</span></div>
             )}
