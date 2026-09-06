@@ -60,13 +60,13 @@ function buildPrintHtml(data: ContractPrintData) {
     .brand .address { margin-top: 4px; font-size: 10px; color: #94a3b8; }
     .title { font-size: 24px; font-weight: 700; letter-spacing: 6px; }
     .sub { text-align: center; color: #64748b; font-size: 12px; margin-bottom: 18px; }
-    .parties-row { display: flex; gap: 14px; margin-bottom: 18px; }
+    .parties-row { display: flex; gap: 14px; margin-bottom: 18px; page-break-inside: avoid; break-inside: avoid; }
     .party-box { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
     .party-box .party-label { background: #eef2ff; font-weight: 700; padding: 7px 10px; font-size: 13px; white-space: nowrap; }
     .party-box table { width: 100%; border-collapse: collapse; }
     .party-box th, .party-box td { border-top: 1px solid #e2e8f0; padding: 6px 10px; font-size: 12px; }
     .party-box th { background: #f8fafc; font-weight: 600; width: 78px; text-align: left; }
-    section { margin-bottom: 14px; }
+    section { margin-bottom: 14px; page-break-inside: avoid; break-inside: avoid; }
     .article-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
     .article-body { font-size: 12px; color: #334155; white-space: pre-wrap; line-height: 1.5; }
     .amount-box { display: flex; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-bottom: 4px; }
@@ -76,13 +76,15 @@ function buildPrintHtml(data: ContractPrintData) {
     .amount-cell .value { font-size: 15px; font-weight: 700; }
     .amount-cell.total { background: #f8fafc; }
     .amount-cell.total .value { color: #6d28d9; font-size: 17px; }
-    .sign-block { margin-top: 28px; display: flex; justify-content: space-between; gap: 24px; }
+    .sign-section { page-break-inside: avoid; break-inside: avoid; }
+    .sign-block { margin-top: 28px; display: flex; justify-content: space-between; gap: 24px; page-break-inside: avoid; break-inside: avoid; }
     .sign-col { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px; }
     .sign-col .role { font-weight: 700; margin-bottom: 8px; }
     .sign-row { display: flex; padding: 3px 0; font-size: 12px; }
     .sign-label { color: #64748b; width: 64px; flex-shrink: 0; }
-    .sign-stamp { position: relative; text-align: right; margin-top: 10px; font-size: 12px; color: #64748b; }
-    .sign-stamp img { position: absolute; right: 30px; top: -18px; width: 56px; height: 56px; opacity: 0.92; }
+    .sign-stamp { text-align: right; margin-top: 10px; font-size: 12px; color: #64748b; }
+    .stamp-anchor { position: relative; display: inline-block; }
+    .stamp-anchor img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; opacity: 0.9; }
   </style></head><body>
   <div class="doc-header">
     <div class="brand">
@@ -148,22 +150,24 @@ function buildPrintHtml(data: ContractPrintData) {
     <div class="article-body">${GENERAL_TERMS}</div>
   </section>
 
-  <p style="text-align:center;font-size:12px;color:#475569;margin-top:20px">
-    위와 같이 계약을 체결하고 이를 증명하기 위하여 계약서 2부를 작성, 각 1부씩 보관한다.
-  </p>
+  <div class="sign-section">
+    <p style="text-align:center;font-size:12px;color:#475569;margin-top:20px">
+      위와 같이 계약을 체결하고 이를 증명하기 위하여 계약서 2부를 작성, 각 1부씩 보관한다.
+    </p>
 
-  <div class="sign-block">
-    <div class="sign-col">
-      <div class="role">갑 (발주처)</div>
-      <div class="sign-row"><span class="sign-label">상호</span><span>${data.client_name}</span></div>
-      <div class="sign-row"><span class="sign-label">대표자</span><span>${data.client_representative || '-'}</span></div>
-      <div class="sign-stamp">서명/날인: ______________ (인)</div>
-    </div>
-    <div class="sign-col">
-      <div class="role">을 (시공사)</div>
-      <div class="sign-row"><span class="sign-label">상호</span><span>${ASO_COMPANY_INFO.name}</span></div>
-      <div class="sign-row"><span class="sign-label">대표자</span><span>${ASO_COMPANY_INFO.representative}</span></div>
-      <div class="sign-stamp">서명/날인: ${ASO_COMPANY_INFO.name} (인)<img src="${stampUrl}" alt="직인" /></div>
+    <div class="sign-block">
+      <div class="sign-col">
+        <div class="role">갑 (발주처)</div>
+        <div class="sign-row"><span class="sign-label">상호</span><span>${data.client_name}</span></div>
+        <div class="sign-row"><span class="sign-label">대표자</span><span>${data.client_representative || '-'}</span></div>
+        <div class="sign-stamp">서명/날인: ______________ (인)</div>
+      </div>
+      <div class="sign-col">
+        <div class="role">을 (시공사)</div>
+        <div class="sign-row"><span class="sign-label">상호</span><span>${ASO_COMPANY_INFO.name}</span></div>
+        <div class="sign-row"><span class="sign-label">대표자</span><span>${ASO_COMPANY_INFO.representative}</span></div>
+        <div class="sign-stamp">서명/날인: ${ASO_COMPANY_INFO.name} (인)<img src="${stampUrl}" alt="직인" /></div>
+      </div>
     </div>
   </div>
   </body></html>`
