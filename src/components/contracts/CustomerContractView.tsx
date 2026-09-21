@@ -25,6 +25,9 @@ interface Props {
   onClose?: () => void
 }
 
+// 일반 법인 사용인감(원형) 표준 규격 기준. 미리보기와 인쇄/PDF 저장에서 항상 동일한 크기를 쓰도록 mm 단위로 고정한다.
+const STAMP_SIZE_MM = '20mm'
+
 function formatDate(date?: string) {
   if (!date) return '-'
   return date.split('T')[0].replace(/-/g, '.')
@@ -78,13 +81,12 @@ function buildPrintHtml(data: ContractPrintData) {
     .amount-cell.total .value { color: #6d28d9; font-size: 17px; }
     .sign-section { page-break-inside: avoid; break-inside: avoid; }
     .sign-block { margin-top: 28px; display: flex; justify-content: space-between; gap: 24px; page-break-inside: avoid; break-inside: avoid; }
-    .sign-col { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px; }
+    .sign-col { position: relative; flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px; }
     .sign-col .role { font-weight: 700; margin-bottom: 8px; }
     .sign-row { display: flex; padding: 3px 0; font-size: 12px; }
     .sign-label { color: #64748b; width: 64px; flex-shrink: 0; }
     .sign-stamp { text-align: right; margin-top: 10px; font-size: 12px; color: #64748b; }
-    .stamp-anchor { position: relative; display: inline-block; }
-    .stamp-anchor img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; opacity: 0.9; }
+    .stamp-img { position: absolute; right: 14px; bottom: 8px; width: ${STAMP_SIZE_MM}; height: ${STAMP_SIZE_MM}; opacity: 0.9; }
   </style></head><body>
   <div class="doc-header">
     <div class="brand">
@@ -166,7 +168,8 @@ function buildPrintHtml(data: ContractPrintData) {
         <div class="role">을 (시공사)</div>
         <div class="sign-row"><span class="sign-label">상호</span><span>${ASO_COMPANY_INFO.name}</span></div>
         <div class="sign-row"><span class="sign-label">대표자</span><span>${ASO_COMPANY_INFO.representative}</span></div>
-        <div class="sign-stamp">서명/날인: ${ASO_COMPANY_INFO.name} (인)<img src="${stampUrl}" alt="직인" /></div>
+        <div class="sign-stamp">서명/날인: ${ASO_COMPANY_INFO.name} (인)</div>
+        <img class="stamp-img" src="${stampUrl}" alt="직인" />
       </div>
     </div>
   </div>
@@ -323,7 +326,12 @@ export default function CustomerContractView({ data, onClose }: Props) {
             <p className="text-xs text-slate-500">상호: {ASO_COMPANY_INFO.name}</p>
             <p className="text-xs text-slate-500">대표자: {ASO_COMPANY_INFO.representative}</p>
             <p className="text-xs text-slate-400 text-right mt-2">서명/날인: {ASO_COMPANY_INFO.name} (인)</p>
-            <img src="/images/aso-stamp.jpg" alt="직인" className="absolute right-6 bottom-1.5 w-12 h-12 opacity-90 pointer-events-none" />
+            <img
+              src="/images/aso-stamp.jpg"
+              alt="직인"
+              className="absolute opacity-90 pointer-events-none"
+              style={{ right: '14px', bottom: '8px', width: STAMP_SIZE_MM, height: STAMP_SIZE_MM }}
+            />
           </div>
         </div>
       </div>
