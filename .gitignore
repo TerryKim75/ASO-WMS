@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .env.local
 .vercel
+
+# Supabase CLI local cache (contains DB connection info)
+supabase/.temp

@@ -1,3 +1,5 @@
+import MarketingNav from '../features/marketing/MarketingNav'
+import { marketingLinks } from '../features/marketing/navigation'
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -33,7 +35,7 @@ export default function Layout() {
 
   const close = () => setMobileOpen(false)
 
-  const currentPage = navItems.find((item) =>
+  const currentPage = marketingLinks.find(item => location.pathname === item.to)?.label ?? navItems.find((item) =>
     item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to)
   )?.label ?? 'ASO System'
 
@@ -77,6 +79,7 @@ export default function Layout() {
             {/* 내비게이션 */}
             <nav className="flex-1 p-4 overflow-y-auto">
               <ul className="space-y-1">
+                <MarketingNav onNavigate={close} />
                 {navItems.map((item) => (
                   <li key={item.to}>
                     <NavLink
@@ -162,7 +165,7 @@ export default function Layout() {
         </header>
 
         <main className="flex-1 overflow-auto min-w-0">
-          <div className="md:min-w-[960px]">
+          <div className={location.pathname.startsWith('/marketing') ? 'min-w-0' : 'md:min-w-[960px]'}>
             <Outlet />
           </div>
         </main>

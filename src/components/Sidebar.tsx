@@ -1,3 +1,4 @@
+import MarketingNav from '../features/marketing/MarketingNav'
 import { useState, Fragment } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
@@ -130,6 +131,7 @@ export default function Sidebar() {
             <Fragment key={item.to}>
               {item.to === '/bids' && <li className="my-2 border-t border-slate-700" aria-hidden="true" />}
               {renderNavItem(item)}
+              {item.to === '/clients' && <MarketingNav />}
             </Fragment>
           ))}
         </ul>

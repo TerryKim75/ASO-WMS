@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { CategoriesProvider } from './contexts/CategoriesContext'
 import Layout from './components/Layout'
@@ -24,6 +25,8 @@ import SettlementForm from './pages/SettlementForm'
 import Clients from './pages/Clients'
 import ExhibitionList from './pages/ExhibitionList'
 
+const Marketing = lazy(() => import('./features/marketing/Marketing'))
+
 function App() {
   return (
     <BrowserRouter>
@@ -39,6 +42,7 @@ function App() {
             <Route path="staff" element={<ConstructionStaff />} />
             <Route path="vendors" element={<Vendors />} />
             <Route path="purchase-orders" element={<PurchaseOrders />} />
+            <Route path="marketing/*" element={<Suspense fallback={<div className="p-8">마케팅 자료를 불러오는 중…</div>}><Marketing /></Suspense>} />
             <Route path="clients" element={<Clients />} />
             <Route path="exhibition-list" element={<ExhibitionList />} />
             <Route path="work-report" element={<WorkReport />} />
