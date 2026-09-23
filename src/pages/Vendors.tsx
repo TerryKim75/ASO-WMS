@@ -13,6 +13,7 @@ export interface Vendor {
   address?: string
   notes?: string
   business_reg_url?: string
+  bank_account_url?: string
   created_at: string
 }
 
@@ -40,9 +41,21 @@ function VendorFormModal({
   } : emptyForm())
   const [existingFileUrl, setExistingFileUrl] = useState(vendor?.business_reg_url || '')
   const [newFile, setNewFile] = useState<File | null>(null)
+  const [existingBankFileUrl, setExistingBankFileUrl] = useState(vendor?.bank_account_url || '')
+  const [newBankFile, setNewBankFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const bankFileInputRef = useRef<HTMLInputElement>(null)
+
+  const uploadVendorFile = async (file: File) => {
+    const ext = file.name.split('.').pop()
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    const { error: uploadError } = await supabase.storage.from('vendor-files').upload(path, file, { upsert: true })
+    if (uploadError) throw uploadError
+    const { data: urlData } = supabase.storage.from('vendor-files').getPublicUrl(path)
+    return urlData.publicUrl
+  }
 
   const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault()
@@ -50,15 +63,8 @@ function VendorFormModal({
     setLoading(true)
     setError('')
     try {
-      let businessRegUrl = existingFileUrl
-      if (newFile) {
-        const ext = newFile.name.split('.').pop()
-        const path = `${Date.now()}.${ext}`
-        const { error: uploadError } = await supabase.storage.from('vendor-files').upload(path, newFile, { upsert: true })
-        if (uploadError) throw uploadError
-        const { data: urlData } = supabase.storage.from('vendor-files').getPublicUrl(path)
-        businessRegUrl = urlData.publicUrl
-      }
+      const businessRegUrl = newFile ? await uploadVendorFile(newFile) : existingFileUrl
+      const bankAccountUrl = newBankFile ? await uploadVendorFile(newBankFile) : existingBankFileUrl
       const payload = {
         name: form.name.trim(),
         category: form.category.trim() || null,
@@ -67,6 +73,7 @@ function VendorFormModal({
         email: form.email.trim() || null,
         address: form.address.trim() || null,
         business_reg_url: businessRegUrl || null,
+        bank_account_url: bankAccountUrl || null,
         notes: form.notes.trim() || null,
       }
       if (vendor) {
@@ -153,6 +160,32 @@ function VendorFormModal({
               </button>
               <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setNewFile(f) }} />
+            </div>
+            <div className="col-span-2">
+              <label className={labelCls}>통장사본</label>
+              {existingBankFileUrl && !newBankFile && (
+                <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 mb-2">
+                  <FileText size={13} className="text-slate-400 flex-shrink-0" />
+                  <a href={existingBankFileUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-violet-600 hover:underline flex-1 truncate">
+                    <ExternalLink size={11} />파일 보기
+                  </a>
+                  <button type="button" onClick={() => setExistingBankFileUrl('')} className="text-slate-400 hover:text-red-500 flex-shrink-0"><X size={13} /></button>
+                </div>
+              )}
+              {newBankFile && (
+                <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-2">
+                  <FileText size={13} className="flex-shrink-0" />
+                  <span className="truncate flex-1">{newBankFile.name}</span>
+                  <button type="button" onClick={() => setNewBankFile(null)} className="text-slate-400 hover:text-red-500 flex-shrink-0"><X size={13} /></button>
+                </div>
+              )}
+              <button type="button" onClick={() => bankFileInputRef.current?.click()}
+                className="flex items-center gap-2 w-full border border-dashed border-slate-300 rounded-lg px-3 py-2.5 text-xs text-slate-500 hover:border-violet-400 hover:text-violet-600 transition-colors">
+                <Upload size={13} />파일 선택 (PDF, 이미지)
+              </button>
+              <input ref={bankFileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setNewBankFile(f) }} />
             </div>
             <div className="col-span-2">
               <label className={labelCls}>비고</label>
@@ -281,12 +314,20 @@ export default function Vendors() {
                       )}
                     </div>
                     {v.notes && <p className="text-xs text-slate-400 mt-1.5">{v.notes}</p>}
-                    {v.business_reg_url && (
-                      <a href={v.business_reg_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline mt-1.5">
-                        <FileText size={11} />사업자등록증
-                      </a>
-                    )}
+                    <div className="flex flex-wrap gap-x-3">
+                      {v.business_reg_url && (
+                        <a href={v.business_reg_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline mt-1.5">
+                          <FileText size={11} />사업자등록증
+                        </a>
+                      )}
+                      {v.bank_account_url && (
+                        <a href={v.bank_account_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline mt-1.5">
+                          <FileText size={11} />통장사본
+                        </a>
+                      )}
+                    </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 flex-shrink-0">
                     <div className="flex items-center gap-0.5">
@@ -343,12 +384,20 @@ export default function Vendors() {
                     <td className="px-5 py-3.5">
                       <p className="font-semibold text-slate-800">{v.name}</p>
                       {v.address && <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[200px]">{v.address}</p>}
-                      {v.business_reg_url && (
-                        <a href={v.business_reg_url} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline mt-0.5">
-                          <FileText size={11} />사업자등록증
-                        </a>
-                      )}
+                      <div className="flex flex-wrap gap-x-3">
+                        {v.business_reg_url && (
+                          <a href={v.business_reg_url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline mt-0.5">
+                            <FileText size={11} />사업자등록증
+                          </a>
+                        )}
+                        {v.bank_account_url && (
+                          <a href={v.bank_account_url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline mt-0.5">
+                            <FileText size={11} />통장사본
+                          </a>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3.5">
                       {v.category ? (
