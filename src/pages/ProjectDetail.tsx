@@ -613,7 +613,7 @@ export default function ProjectDetail() {
     try {
       const ext = file.name.split('.').pop()
       const path = `${id}/${field}-${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage.from('project-files').upload(path, file, { upsert: true })
+      const { error: uploadError } = await supabase.storage.from('project-files').upload(path, file)
       if (uploadError) throw uploadError
       const { data: urlData } = supabase.storage.from('project-files').getPublicUrl(path)
       const column = field === 'design' ? 'design_file_url' : 'drawing_file_url'
@@ -629,7 +629,7 @@ export default function ProjectDetail() {
     try {
       const ext = file.name.split('.').pop()
       const path = `${poId}/${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage.from('purchase-order-files').upload(path, file, { upsert: true })
+      const { error: uploadError } = await supabase.storage.from('purchase-order-files').upload(path, file)
       if (uploadError) throw uploadError
       const { data: urlData } = supabase.storage.from('purchase-order-files').getPublicUrl(path)
       await supabase.from('purchase_orders').update({ file_url: urlData.publicUrl }).eq('id', poId)

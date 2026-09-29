@@ -49,9 +49,18 @@ function VendorFormModal({
   const bankFileInputRef = useRef<HTMLInputElement>(null)
 
   const uploadVendorFile = async (file: File) => {
-    const ext = file.name.split('.').pop()
+    // vendor-files 버킷은 PDF/JPG/PNG, 20MB까지만 허용한다(0006)
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    if (!ext || !['pdf', 'jpg', 'jpeg', 'png'].includes(ext)) {
+      throw new Error(`${file.name}: PDF, JPG, PNG 파일만 업로드할 수 있습니다.`)
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      throw new Error(`${file.name}: 파일 크기는 20MB 이하여야 합니다.`)
+    }
+    // 브라우저가 MIME 타입을 비워두면 octet-stream으로 전송돼 버킷에서 거부되므로 확장자로 지정
+    const contentType = ext === 'pdf' ? 'application/pdf' : ext === 'png' ? 'image/png' : 'image/jpeg'
     const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-    const { error: uploadError } = await supabase.storage.from('vendor-files').upload(path, file, { upsert: true })
+    const { error: uploadError } = await supabase.storage.from('vendor-files').upload(path, new Blob([file], { type: contentType }), { contentType })
     if (uploadError) throw uploadError
     const { data: urlData } = supabase.storage.from('vendor-files').getPublicUrl(path)
     return urlData.publicUrl

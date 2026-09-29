@@ -48,7 +48,7 @@ function ClientFormModal({
       if (newFile) {
         const ext = newFile.name.split('.').pop()
         const path = `${Date.now()}.${ext}`
-        const { error: uploadError } = await supabase.storage.from('client-files').upload(path, newFile, { upsert: true })
+        const { error: uploadError } = await supabase.storage.from('client-files').upload(path, newFile)
         if (uploadError) throw uploadError
         const { data: urlData } = supabase.storage.from('client-files').getPublicUrl(path)
         businessRegUrl = urlData.publicUrl
