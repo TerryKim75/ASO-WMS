@@ -16,8 +16,9 @@ export interface OrderItem {
   name: string
   quantity: number
   unit: string
-  unit_price: number
-  amount: number
+  /** 과거 발주서 호환용 — 신규 작성 시 금액은 입력하지 않고 견적서 총계로 대체한다 */
+  unit_price?: number
+  amount?: number
 }
 
 interface ExistingOrder {
@@ -41,17 +42,13 @@ interface Props {
 
 const PO_STATUSES = ['발주중', '납품완료', '취소']
 
-const emptyItem = (): OrderItem => ({ name: '', quantity: 1, unit: 'EA', unit_price: 0, amount: 0 })
+const emptyItem = (): OrderItem => ({ name: '', quantity: 1, unit: 'EA' })
 
 function generateOrderNumber() {
   const now = new Date()
   const d = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
   const r = String(Math.floor(Math.random() * 900) + 100)
   return `PO-${d}-${r}`
-}
-
-function formatKRW(n: number) {
-  return n.toLocaleString('ko-KR') + '원'
 }
 
 function todayStr() {
@@ -84,16 +81,11 @@ export default function PurchaseOrderModal({ vendor, onClose, defaultProjectId, 
     const updated = [...items]
     const val = field === 'name' || field === 'unit' ? raw : Number(raw) || 0
     updated[i] = { ...updated[i], [field]: val }
-    if (field === 'quantity' || field === 'unit_price') {
-      updated[i].amount = updated[i].quantity * updated[i].unit_price
-    }
     setItems(updated)
   }
 
   const addItem = () => setItems([...items, emptyItem()])
   const removeItem = (i: number) => setItems(items.filter((_, idx) => idx !== i))
-
-  const total = items.reduce((s, item) => s + item.amount, 0)
 
   const handleSave = async () => {
     setSaving(true)
@@ -104,7 +96,6 @@ export default function PurchaseOrderModal({ vendor, onClose, defaultProjectId, 
       delivery_date: form.delivery_date || null,
       project_id: form.project_id || null,
       items: items.filter((it) => it.name.trim()),
-      total_amount: total,
       notes: form.notes.trim() || null,
       status: form.status,
     }
@@ -128,8 +119,6 @@ export default function PurchaseOrderModal({ vendor, onClose, defaultProjectId, 
           <td style="border:1px solid #ddd;padding:8px 10px">${it.name}</td>
           <td style="border:1px solid #ddd;padding:8px 10px;text-align:center">${it.quantity.toLocaleString()}</td>
           <td style="border:1px solid #ddd;padding:8px 10px;text-align:center">${it.unit}</td>
-          <td style="border:1px solid #ddd;padding:8px 10px;text-align:right">${it.unit_price.toLocaleString()}</td>
-          <td style="border:1px solid #ddd;padding:8px 10px;text-align:right;font-weight:600">${it.amount.toLocaleString()}</td>
         </tr>`).join('')
 
     const html = `<!DOCTYPE html>
@@ -148,7 +137,6 @@ export default function PurchaseOrderModal({ vendor, onClose, defaultProjectId, 
   .info-value { font-weight: 600; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
   thead th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 9px 10px; font-size: 12px; }
-  .total-row { text-align: right; font-size: 16px; font-weight: 700; margin: 12px 0; padding: 12px 16px; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 6px; }
   .notes-section { margin-top: 16px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 6px; min-height: 60px; }
   .notes-label { font-size: 11px; color: #94a3b8; margin-bottom: 4px; }
   .footer { margin-top: 40px; text-align: right; color: #94a3b8; font-size: 11px; }
@@ -179,16 +167,12 @@ export default function PurchaseOrderModal({ vendor, onClose, defaultProjectId, 
       <th>품목명</th>
       <th style="width:70px">수량</th>
       <th style="width:60px">단위</th>
-      <th style="width:110px">단가</th>
-      <th style="width:120px">금액</th>
     </tr>
   </thead>
   <tbody>
-    ${itemRows || '<tr><td colspan="6" style="border:1px solid #ddd;padding:20px;text-align:center;color:#94a3b8">품목 없음</td></tr>'}
+    ${itemRows || '<tr><td colspan="4" style="border:1px solid #ddd;padding:20px;text-align:center;color:#94a3b8">품목 없음</td></tr>'}
   </tbody>
 </table>
-
-<div class="total-row">합 계 &nbsp;&nbsp; ${formatKRW(total)}</div>
 
 ${form.notes ? `<div class="notes-section"><div class="notes-label">비고</div>${form.notes}</div>` : ''}
 
@@ -289,8 +273,6 @@ ${form.notes ? `<div class="notes-section"><div class="notes-label">비고</div>
                     <th className="text-left px-3 py-2.5 font-semibold text-slate-600">품목명</th>
                     <th className="text-center px-2 py-2.5 font-semibold text-slate-600 w-20">수량</th>
                     <th className="text-center px-2 py-2.5 font-semibold text-slate-600 w-16">단위</th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-slate-600 w-28">단가 (원)</th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-slate-600 w-28">금액 (원)</th>
                     <th className="w-8" />
                   </tr>
                 </thead>
@@ -312,14 +294,6 @@ ${form.notes ? `<div class="notes-section"><div class="notes-label">비고</div>
                         <input value={item.unit} onChange={(e) => updateItem(i, 'unit', e.target.value)}
                           className="w-full border border-slate-200 rounded px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-violet-400" />
                       </td>
-                      <td className="px-2 py-1.5">
-                        <input type="number" value={item.unit_price} onChange={(e) => updateItem(i, 'unit_price', e.target.value)}
-                          min="0"
-                          className="w-full border border-slate-200 rounded px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-1 focus:ring-violet-400" />
-                      </td>
-                      <td className="px-3 py-2 text-right font-semibold text-slate-800">
-                        {item.amount.toLocaleString()}
-                      </td>
                       <td className="px-2 py-2 text-center">
                         {items.length > 1 && (
                           <button onClick={() => removeItem(i)} className="text-slate-300 hover:text-red-400 transition-colors">
@@ -330,13 +304,6 @@ ${form.notes ? `<div class="notes-section"><div class="notes-label">비고</div>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr className="bg-slate-50 border-t-2 border-slate-200">
-                    <td colSpan={5} className="px-3 py-3 text-right font-bold text-slate-700">합 계</td>
-                    <td className="px-3 py-3 text-right font-bold text-lg text-violet-700">{formatKRW(total)}</td>
-                    <td />
-                  </tr>
-                </tfoot>
               </table>
             </div>
           </div>

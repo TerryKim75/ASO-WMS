@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Search, Eye, Trash2, FileText, Paperclip, Plus, Building2 } from 'lucide-react'
+import { Search, Eye, Trash2, FileText, Paperclip, Plus, Building2, Pencil } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { Vendor } from './Vendors'
 import PurchaseOrderModal from '../components/PurchaseOrderModal'
+import EditPoSummaryModal from '../components/EditPoSummaryModal'
+import { attachQuoteToPurchaseOrder, QUOTE_FILE_ACCEPT } from '../lib/quoteTotal'
 import ViewPurchaseOrderModal, { PO_STATUSES, PO_STATUS_COLORS, type PurchaseOrder } from '../components/ViewPurchaseOrderModal'
 
 export default function PurchaseOrders() {
@@ -14,6 +16,7 @@ export default function PurchaseOrders() {
   const [viewingPo, setViewingPo] = useState<PurchaseOrder | null>(null)
   const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null)
   const [uploadingPoId, setUploadingPoId] = useState<string | null>(null)
+  const [quickEditPo, setQuickEditPo] = useState<PurchaseOrder | null>(null)
   const [newOrderVendorId, setNewOrderVendorId] = useState('')
   const [orderVendor, setOrderVendor] = useState<Vendor | null>(null)
 
@@ -42,13 +45,11 @@ export default function PurchaseOrders() {
   const handleFileUpload = async (poId: string, file: File) => {
     setUploadingPoId(poId)
     try {
-      const ext = file.name.split('.').pop()
-      const path = `${poId}/${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage.from('purchase-order-files').upload(path, file)
-      if (uploadError) throw uploadError
-      const { data: urlData } = supabase.storage.from('purchase-order-files').getPublicUrl(path)
-      await supabase.from('purchase_orders').update({ file_url: urlData.publicUrl }).eq('id', poId)
+      await attachQuoteToPurchaseOrder(poId, file)
       fetchData()
+    } catch (err) {
+      console.error(err)
+      window.alert('견적서 첨부 중 오류가 발생했습니다.')
     } finally {
       setUploadingPoId(null)
     }
@@ -147,6 +148,10 @@ export default function PurchaseOrders() {
                       className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
                       <Eye size={15} />
                     </button>
+                    <button onClick={() => setQuickEditPo(po)} title="금액·상태 수정"
+                      className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
+                      <Pencil size={15} />
+                    </button>
                     <button onClick={() => handleDelete(po.id)}
                       className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={15} />
@@ -157,13 +162,13 @@ export default function PurchaseOrders() {
                   {po.file_url ? (
                     <a href={po.file_url} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs font-medium text-violet-600">
-                      <FileText size={12} />첨부파일 보기
+                      <FileText size={12} />견적서 보기
                     </a>
                   ) : (
                     <label className="inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 bg-slate-100 rounded-lg cursor-pointer">
                       <Paperclip size={11} />
-                      {uploadingPoId === po.id ? '업로드 중...' : '파일 첨부'}
-                      <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" disabled={uploadingPoId === po.id}
+                      {uploadingPoId === po.id ? '업로드 중...' : '견적서 첨부'}
+                      <input type="file" accept={QUOTE_FILE_ACCEPT} className="hidden" disabled={uploadingPoId === po.id}
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(po.id, f) }} />
                     </label>
                   )}
@@ -189,7 +194,7 @@ export default function PurchaseOrders() {
                 <th className="text-left px-4 py-3.5 font-semibold text-slate-600">발주일</th>
                 <th className="text-right px-4 py-3.5 font-semibold text-slate-600">금액</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-slate-600">상태</th>
-                <th className="text-center px-4 py-3.5 font-semibold text-slate-600">첨부파일</th>
+                <th className="text-center px-4 py-3.5 font-semibold text-slate-600">견적서</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-slate-600">관리</th>
               </tr>
             </thead>
@@ -225,8 +230,8 @@ export default function PurchaseOrders() {
                       ) : (
                         <label className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg cursor-pointer transition-colors ${uploadingPoId === po.id ? 'text-slate-400 bg-slate-50' : 'text-slate-600 bg-slate-100 hover:bg-violet-100 hover:text-violet-700'}`}>
                           <Paperclip size={12} />
-                          {uploadingPoId === po.id ? '업로드 중...' : '파일 첨부'}
-                          <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" disabled={uploadingPoId === po.id}
+                          {uploadingPoId === po.id ? '업로드 중...' : '견적서 첨부'}
+                          <input type="file" accept={QUOTE_FILE_ACCEPT} className="hidden" disabled={uploadingPoId === po.id}
                             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(po.id, f) }} />
                         </label>
                       )}
@@ -236,6 +241,10 @@ export default function PurchaseOrders() {
                         <button onClick={() => setViewingPo(po)}
                           className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
                           <Eye size={14} />
+                        </button>
+                        <button onClick={() => setQuickEditPo(po)} title="금액·상태 수정"
+                          className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
+                          <Pencil size={14} />
                         </button>
                         <button onClick={() => handleDelete(po.id)}
                           className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
@@ -259,6 +268,9 @@ export default function PurchaseOrders() {
           vendor={orderVendor}
           onClose={() => { setOrderVendor(null); setNewOrderVendorId(''); fetchData() }}
         />
+      )}
+      {quickEditPo && (
+        <EditPoSummaryModal po={quickEditPo} onClose={() => setQuickEditPo(null)} onSaved={fetchData} />
       )}
       {viewingPo && (
         <ViewPurchaseOrderModal

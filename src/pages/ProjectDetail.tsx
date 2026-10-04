@@ -9,6 +9,8 @@ import { supabase } from '../lib/supabase'
 import type { WmsProject, ProjectStatus, Item, InventoryTransaction, ProjectBid } from '../types'
 import { STATUS_COLORS } from './Projects'
 import PurchaseOrderModal from '../components/PurchaseOrderModal'
+import EditPoSummaryModal from '../components/EditPoSummaryModal'
+import { attachQuoteToPurchaseOrder, QUOTE_FILE_ACCEPT } from '../lib/quoteTotal'
 import AddProjectModal from '../components/AddProjectModal'
 import ViewPurchaseOrderModal, { PO_STATUS_COLORS, type PurchaseOrder } from '../components/ViewPurchaseOrderModal'
 
@@ -453,6 +455,7 @@ export default function ProjectDetail() {
   const [showEditProject, setShowEditProject] = useState(false)
   const [viewingPo, setViewingPo] = useState<PurchaseOrder | null>(null)
   const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null)
+  const [quickEditPo, setQuickEditPo] = useState<PurchaseOrder | null>(null)
   const [showNoticeModal, setShowNoticeModal] = useState(false)
   const [sendingNotice, setSendingNotice] = useState(false)
   const [noticeResult, setNoticeResult] = useState<{ ok: boolean; msg: string } | null>(null)
@@ -627,13 +630,11 @@ export default function ProjectDetail() {
   const handleFileUpload = async (poId: string, file: File) => {
     setUploadingPoId(poId)
     try {
-      const ext = file.name.split('.').pop()
-      const path = `${poId}/${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage.from('purchase-order-files').upload(path, file)
-      if (uploadError) throw uploadError
-      const { data: urlData } = supabase.storage.from('purchase-order-files').getPublicUrl(path)
-      await supabase.from('purchase_orders').update({ file_url: urlData.publicUrl }).eq('id', poId)
+      await attachQuoteToPurchaseOrder(poId, file)
       fetchProjectData()
+    } catch (err) {
+      console.error(err)
+      window.alert('견적서 첨부 중 오류가 발생했습니다.')
     } finally {
       setUploadingPoId(null)
     }
@@ -1213,7 +1214,7 @@ export default function ProjectDetail() {
                 <th className="text-left px-4 py-3 font-semibold text-slate-600 text-xs">발주일</th>
                 <th className="text-right px-4 py-3 font-semibold text-slate-600 text-xs">금액</th>
                 <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs">상태</th>
-                <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs">첨부파일</th>
+                <th className="text-center px-4 py-3 font-semibold text-slate-600 text-xs">견적서</th>
                 <th className="px-4 py-3 w-20" />
               </tr>
             </thead>
@@ -1241,15 +1242,15 @@ export default function ProjectDetail() {
                         </a>
                         <label className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 cursor-pointer">
                           <Paperclip size={12} />교체
-                          <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
+                          <input type="file" accept={QUOTE_FILE_ACCEPT} className="hidden"
                             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(po.id, f) }} />
                         </label>
                       </div>
                     ) : (
                       <label className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg cursor-pointer transition-colors ${uploadingPoId === po.id ? 'text-slate-400 bg-slate-50' : 'text-slate-600 bg-slate-100 hover:bg-violet-100 hover:text-violet-700'}`}>
                         <Paperclip size={12} />
-                        {uploadingPoId === po.id ? '업로드 중...' : '파일 첨부'}
-                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" disabled={uploadingPoId === po.id}
+                        {uploadingPoId === po.id ? '업로드 중...' : '견적서 첨부'}
+                        <input type="file" accept={QUOTE_FILE_ACCEPT} className="hidden" disabled={uploadingPoId === po.id}
                           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(po.id, f) }} />
                       </label>
                     )}
@@ -1259,6 +1260,10 @@ export default function ProjectDetail() {
                       <button onClick={() => setViewingPo(po)}
                         className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
                         <Eye size={13} />
+                      </button>
+                      <button onClick={() => setQuickEditPo(po)} title="금액·상태 수정"
+                        className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors">
+                        <Pencil size={13} />
                       </button>
                       <button onClick={() => handleDeletePo(po.id)}
                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
@@ -1372,6 +1377,10 @@ export default function ProjectDetail() {
           onClose={() => setShowEditProject(false)}
           onSuccess={() => { setShowEditProject(false); fetchProjectData() }}
         />
+      )}
+
+      {quickEditPo && (
+        <EditPoSummaryModal po={quickEditPo} onClose={() => setQuickEditPo(null)} onSaved={fetchProjectData} />
       )}
 
       {/* 발주서 보기 / 수정 모달 */}

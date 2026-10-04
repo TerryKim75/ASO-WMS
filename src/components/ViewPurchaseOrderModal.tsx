@@ -70,44 +70,42 @@ export default function ViewPurchaseOrderModal({
                     <th className="text-left px-3 py-2.5 font-semibold text-slate-600">품목명</th>
                     <th className="text-center px-2 py-2.5 font-semibold text-slate-600 w-20">수량</th>
                     <th className="text-center px-2 py-2.5 font-semibold text-slate-600 w-16">단위</th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-slate-600 w-28">단가 (원)</th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-slate-600 w-28">금액 (원)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {po.items.length === 0 ? (
-                    <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-400 text-sm">등록된 품목이 없습니다.</td></tr>
+                    <tr><td colSpan={4} className="px-3 py-6 text-center text-slate-400 text-sm">등록된 품목이 없습니다.</td></tr>
                   ) : po.items.map((item, i) => (
                     <tr key={i}>
                       <td className="px-3 py-2 text-center text-slate-400 text-xs">{i + 1}</td>
                       <td className="px-3 py-2 text-slate-800">{item.name}</td>
                       <td className="px-2 py-2 text-center text-slate-600">{item.quantity.toLocaleString()}</td>
                       <td className="px-2 py-2 text-center text-slate-600">{item.unit}</td>
-                      <td className="px-3 py-2 text-right text-slate-600">{item.unit_price.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right font-semibold text-slate-800">{item.amount.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr className="bg-slate-50 border-t-2 border-slate-200">
-                    <td colSpan={5} className="px-3 py-3 text-right font-bold text-slate-700">합 계</td>
-                    <td className="px-3 py-3 text-right font-bold text-lg text-violet-700">{po.total_amount.toLocaleString()}원</td>
-                  </tr>
-                </tfoot>
               </table>
             </div>
           </div>
 
-          {/* 첨부파일 */}
-          {po.file_url && (
+          {/* 견적서 · 금액 */}
+          <div className="flex items-end justify-between gap-4 bg-slate-50 rounded-lg p-4">
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">첨부파일</p>
-              <a href={po.file_url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-violet-600 hover:underline w-fit">
-                <FileText size={14} /><ExternalLink size={12} />파일 보기
-              </a>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">견적서</p>
+              {po.file_url ? (
+                <a href={po.file_url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-violet-600 hover:underline w-fit">
+                  <FileText size={14} /><ExternalLink size={12} />견적서 보기
+                </a>
+              ) : (
+                <p className="text-sm text-slate-400">첨부된 견적서가 없습니다.</p>
+              )}
             </div>
-          )}
+            <div className="text-right">
+              <p className="text-xs font-semibold text-slate-500 mb-1">금액 (견적서 총계)</p>
+              <p className="font-bold text-lg text-violet-700">{po.total_amount.toLocaleString()}원</p>
+            </div>
+          </div>
 
           {/* 비고 */}
           {po.notes && (
